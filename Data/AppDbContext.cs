@@ -1,0 +1,34 @@
+using BikePartsTracker.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace BikePartsTracker.Data
+{
+    public class AppDbContext : DbContext
+    {
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) {}
+
+        public DbSet<User> Users { get; set; }
+        public DbSet<Bike> Bikes { get; set; }
+        public DbSet<BikePart> BikeParts { get; set; }
+        public DbSet<PartUsageHistory> PartUsageHistories { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            // Relationships
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.Bikes)
+                .WithOne(b => b.User)
+                .HasForeignKey(b => b.UserId);
+
+            modelBuilder.Entity<Bike>()
+                .HasMany(b => b.Parts)
+                .WithOne(p => p.Bike)
+                .HasForeignKey(p => p.BikeId);
+
+            modelBuilder.Entity<BikePart>()
+                .HasMany(p => p.UsageHistory)
+                .WithOne(h => h.BikePart)
+                .HasForeignKey(h => h.BikePartId);
+        }
+    }
+}

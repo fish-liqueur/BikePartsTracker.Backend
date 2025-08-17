@@ -1,0 +1,26 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace BikePartsTracker.Models
+{
+    public class Bike
+    {
+        [Key]
+        public Guid Id { get; set; }
+
+        public string StravaBikeId { get; set; } = string.Empty;
+
+        [ForeignKey(nameof(User))]
+        public Guid UserId { get; set; }
+        public required User User { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+
+        public double TotalDistance { get; set; } // in km
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public ICollection<BikePart> Parts { get; set; } = new List<BikePart>();
+    }
+}

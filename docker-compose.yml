@@ -1,0 +1,43 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: bikepartstracker-postgres
+    environment:
+      POSTGRES_DB: BikePartsTracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: yourpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bikepartstracker-network
+    restart: unless-stopped
+
+  # .NET Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bikepartstracker-app
+    ports:
+      - "8080:80"
+      - "8443:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80;https://+:443
+    depends_on:
+      - postgres
+    networks:
+      - bikepartstracker-network
+    restart: unless-stopped
+    volumes:
+      - ./appsettings.Development.json:/app/appsettings.Development.json:ro
+
+volumes:
+  postgres_data:
+
+networks:
+  bikepartstracker-network:
+    driver: bridge
