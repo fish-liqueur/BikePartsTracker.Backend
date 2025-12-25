@@ -23,7 +23,6 @@ services:
     container_name: bikepartstracker-app
     ports:
       - "8080:80"
-      - "5000:80"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80

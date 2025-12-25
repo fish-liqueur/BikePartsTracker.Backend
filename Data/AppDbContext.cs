@@ -11,6 +11,8 @@ namespace BikePartsTracker.Data
         public DbSet<Bike> Bikes { get; set; }
         public DbSet<BikePart> BikeParts { get; set; }
         public DbSet<PartUsageHistory> PartUsageHistories { get; set; }
+        public DbSet<ExternalServiceIntegration> ExternalServiceIntegrations { get; set; }
+        public DbSet<StravaAthlete> StravaAthletes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -29,6 +31,24 @@ namespace BikePartsTracker.Data
                 .HasMany(p => p.UsageHistory)
                 .WithOne(h => h.BikePart)
                 .HasForeignKey(h => h.BikePartId);
+
+            // External service integration relationships
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.ExternalServiceIntegrations)
+                .WithOne(e => e.User)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ExternalServiceIntegration>()
+                .HasOne(e => e.StravaAthlete)
+                .WithOne(s => s.Integration)
+                .HasForeignKey<StravaAthlete>(s => s.IntegrationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Ensure one Strava integration per user
+            modelBuilder.Entity<ExternalServiceIntegration>()
+                .HasIndex(e => new { e.UserId, e.ServiceType })
+                .IsUnique();
         }
     }
 }

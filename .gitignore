@@ -200,6 +200,7 @@ node_modules/
 appsettings.Development.json
 appsettings.Production.json
 appsettings.Staging.json
+appsettings.Docker.json
 
 # Database files
 *.db
@@ -223,3 +224,5 @@ Desktop.ini
 # Temporary files
 *.tmp
 *.temp
+appsettings.Docker.json
+appsettings.Docker.json

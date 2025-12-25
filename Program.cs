@@ -60,6 +60,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 // Register services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddHttpClient<IStravaService, StravaService>();
 
 // Register EF Core with PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>

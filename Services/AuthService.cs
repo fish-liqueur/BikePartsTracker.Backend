@@ -48,10 +48,6 @@ namespace BikePartsTracker.Services
             var token = GenerateJwtToken(user);
             var refreshToken = GenerateRefreshToken();
 
-            // Update user's refresh token
-            user.RefreshToken = refreshToken;
-            user.TokenExpiry = DateTime.UtcNow.AddDays(7);
-            await _context.SaveChangesAsync();
 
             return new AuthResponseDto
             {
@@ -94,11 +90,6 @@ namespace BikePartsTracker.Services
 
             var token = GenerateJwtToken(user);
             var refreshToken = GenerateRefreshToken();
-
-            // Set refresh token
-            user.RefreshToken = refreshToken;
-            user.TokenExpiry = DateTime.UtcNow.AddDays(7);
-            await _context.SaveChangesAsync();
 
             return new AuthResponseDto
             {
