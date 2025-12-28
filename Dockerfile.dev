@@ -1,0 +1,24 @@
+# Development Dockerfile with hot reload support
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS development
+
+WORKDIR /app
+
+# Install the dotnet watch tool globally
+RUN dotnet tool install --global dotnet-watch
+
+# Add dotnet tools to PATH
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
+# Copy project file and restore dependencies
+COPY ["BikePartsTracker.Backend.csproj", "./"]
+RUN dotnet restore "BikePartsTracker.Backend.csproj"
+
+# Copy the rest of the source code (will be overridden by volume mount in docker-compose)
+COPY . .
+
+# Expose port
+EXPOSE 80
+
+# Use dotnet watch for hot reload
+ENTRYPOINT ["dotnet", "watch", "run", "--urls", "http://0.0.0.0:80", "--no-launch-profile"]
+

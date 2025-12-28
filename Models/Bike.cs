@@ -8,7 +8,7 @@ namespace BikePartsTracker.Models
         [Key]
         public Guid Id { get; set; }
 
-        public string StravaBikeId { get; set; } = string.Empty;
+        public string? StravaBikeId { get; set; }
 
         [ForeignKey(nameof(User))]
         public Guid UserId { get; set; }
@@ -18,6 +18,16 @@ namespace BikePartsTracker.Models
         public string Type { get; set; } = string.Empty;
 
         public double TotalDistance { get; set; } // in km
+
+        /// <summary>
+        /// Distance from Strava in meters 
+        /// </summary>
+        public double StravaDistance { get; set; }
+
+        /// <summary>
+        /// Whether the bike is active (shown by default)
+        /// </summary>
+        public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

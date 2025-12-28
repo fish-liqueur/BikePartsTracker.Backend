@@ -19,7 +19,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: bikepartstracker-app
     ports:
       - "8080:80"
@@ -33,7 +33,13 @@ services:
       - bikepartstracker-network
     restart: unless-stopped
     volumes:
+      # Mount source code for hot reload
+      - .:/app
+      # Mount appsettings separately (read-only)
       - ./appsettings.Docker.json:/app/appsettings.Development.json:ro
+      # Exclude build artifacts from volume mount
+      - /app/bin
+      - /app/obj
 
 volumes:
   postgres_data:

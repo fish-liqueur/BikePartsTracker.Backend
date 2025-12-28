@@ -39,6 +39,11 @@ namespace BikePartsTracker.DTOs
         /// Athlete country
         /// </summary>
         public string? Country { get; set; }
+
+        /// <summary>
+        /// List of bikes from Strava
+        /// </summary>
+        public List<StravaBikeDto> Bikes { get; set; } = new List<StravaBikeDto>();
     }
 }
 

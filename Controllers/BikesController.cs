@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using BikePartsTracker.Data;
 using BikePartsTracker.Models;
 using BikePartsTracker.DTOs;
@@ -64,6 +66,8 @@ namespace BikePartsTracker.Controllers
                 Name = createBikeDto.Name,
                 Type = createBikeDto.Type,
                 TotalDistance = createBikeDto.TotalDistance,
+                StravaDistance = 0,
+                IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
             
@@ -125,6 +129,126 @@ namespace BikePartsTracker.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        /// <summary>
+        /// Sync bikes (merge/update bikes from frontend, typically after Strava import)
+        /// </summary>
+        /// <param name="request">Bikes to sync</param>
+        /// <returns>Success response</returns>
+        /// <response code="200">Bikes synced successfully</response>
+        /// <response code="400">Invalid request data or validation error</response>
+        /// <response code="401">User not authenticated</response>
+        [HttpPost("sync")]
+        [Authorize]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        public async Task<ActionResult> SyncBikes([FromBody] SyncBikesRequestDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { message = "Invalid request data" });
+            }
+
+            try
+            {
+                // Get current user from JWT token
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                {
+                    return Unauthorized();
+                }
+
+                // Validate: check for duplicate Strava bike IDs
+                var stravaBikeIds = request.Bikes
+                    .Where(b => !string.IsNullOrEmpty(b.StravaBikeId))
+                    .Select(b => b.StravaBikeId!)
+                    .ToList();
+                
+                var duplicateStravaIds = stravaBikeIds
+                    .GroupBy(id => id)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key)
+                    .ToList();
+
+                if (duplicateStravaIds.Any())
+                {
+                    return BadRequest(new { message = $"Duplicate Strava bike IDs found: {string.Join(", ", duplicateStravaIds)}" });
+                }
+
+                // Get all existing bikes for this user
+                var existingBikes = await _context.Bikes
+                    .Where(b => b.UserId == userId)
+                    .ToListAsync();
+
+                // Get user from database (needed for new bikes)
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
+                {
+                    return Unauthorized();
+                }
+
+                // Process each bike in the request
+                foreach (var bikeDto in request.Bikes)
+                {
+                    Bike? bike = null;
+
+                    // Try to find existing bike by internal ID
+                    if (bikeDto.Id.HasValue)
+                    {
+                        bike = existingBikes.FirstOrDefault(b => b.Id == bikeDto.Id.Value);
+                    }
+
+                    // If not found and has Strava ID, try to find by Strava ID
+                    if (bike == null && !string.IsNullOrEmpty(bikeDto.StravaBikeId))
+                    {
+                        bike = existingBikes.FirstOrDefault(b => b.StravaBikeId == bikeDto.StravaBikeId);
+                    }
+
+                    if (bike != null)
+                    {
+                        // Update existing bike
+                        bike.Name = bikeDto.Name;
+                        bike.Type = bikeDto.Type;
+                        bike.TotalDistance = bikeDto.TotalDistance;
+                        bike.StravaDistance = bikeDto.StravaDistance;
+                        bike.StravaBikeId = bikeDto.StravaBikeId;
+                        bike.IsActive = bikeDto.IsActive;
+                    }
+                    else
+                    {
+                        // Create new bike
+                        bike = new Bike
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = userId,
+                            User = user,
+                            Name = bikeDto.Name,
+                            Type = bikeDto.Type,
+                            TotalDistance = bikeDto.TotalDistance,
+                            StravaDistance = bikeDto.StravaDistance,
+                            StravaBikeId = bikeDto.StravaBikeId,
+                            IsActive = bikeDto.IsActive,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.Bikes.Add(bike);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Bikes synced successfully" });
+            }
+            catch (DbUpdateException dbEx)
+            {
+                var innerMessage = dbEx.InnerException?.Message ?? dbEx.Message;
+                return StatusCode(500, new { message = $"Database error: {innerMessage}" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = $"An error occurred: {ex.Message}" });
+            }
         }
 
         private bool BikeExists(Guid id)

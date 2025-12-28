@@ -20,11 +20,13 @@ namespace BikePartsTracker.Controllers
     {
         private readonly IStravaService _stravaService;
         private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public StravaController(IStravaService stravaService, AppDbContext context)
+        public StravaController(IStravaService stravaService, AppDbContext context, IConfiguration configuration)
         {
             _stravaService = stravaService;
             _context = context;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -62,14 +64,36 @@ namespace BikePartsTracker.Controllers
                 }
 
                 // Exchange code for token with Strava
-                var tokenResponse = await _stravaService.ExchangeCodeForTokenAsync(request.Code, request.RedirectUri);
+                StravaTokenResponse? tokenResponse;
+                try
+                {
+                    tokenResponse = await _stravaService.ExchangeCodeForTokenAsync(request.Code, request.RedirectUri);
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    // Strava API returned an error - return the actual error message
+                    return StatusCode(500, new StravaAuthResponseDto
+                    {
+                        Success = false,
+                        Message = httpEx.Message
+                    });
+                }
+                catch (InvalidOperationException opEx)
+                {
+                    // Configuration or operation error
+                    return StatusCode(500, new StravaAuthResponseDto
+                    {
+                        Success = false,
+                        Message = opEx.Message
+                    });
+                }
                 
-                if (tokenResponse == null)
+                if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken) || string.IsNullOrEmpty(tokenResponse.RefreshToken))
                 {
                     return StatusCode(500, new StravaAuthResponseDto
                     {
                         Success = false,
-                        Message = "Failed to exchange authorization code with Strava"
+                        Message = "Invalid token response from Strava: AccessToken or RefreshToken is missing"
                     });
                 }
 
@@ -220,6 +244,28 @@ namespace BikePartsTracker.Controllers
         }
 
         /// <summary>
+        /// Get the Strava OAuth authorization URL with the correct scope
+        /// </summary>
+        /// <param name="redirectUri">The redirect URI to use after authorization</param>
+        /// <returns>Authorization URL</returns>
+        /// <response code="200">Returns the authorization URL</response>
+        [HttpGet("authorize-url")]
+        [ProducesResponseType(200)]
+        public ActionResult GetAuthorizeUrl([FromQuery] string redirectUri)
+        {
+            var clientId = _configuration["Strava:ClientId"];
+            if (string.IsNullOrEmpty(clientId))
+            {
+                return StatusCode(500, new { message = "Strava ClientId is not configured" });
+            }
+
+            var scope = "profile:read_all"; 
+            var authorizeUrl = $"https://www.strava.com/oauth/authorize?client_id={Uri.EscapeDataString(clientId)}&response_type=code&redirect_uri={Uri.EscapeDataString(redirectUri)}&scope={Uri.EscapeDataString(scope)}";
+            
+            return Ok(new { authorizeUrl });
+        }
+
+        /// <summary>
         /// Disconnect Strava integration by revoking the token and removing it from the database
         /// </summary>
         /// <returns>Disconnect response indicating success</returns>
@@ -286,9 +332,9 @@ namespace BikePartsTracker.Controllers
         }
 
         /// <summary>
-        /// Get Strava athlete data for the authenticated user
+        /// Get Strava athlete data for the authenticated user (fetches fresh data from Strava API)
         /// </summary>
-        /// <returns>Strava athlete information</returns>
+        /// <returns>Strava athlete information including bikes</returns>
         /// <response code="200">Returns athlete data</response>
         /// <response code="404">Strava integration not found</response>
         /// <response code="401">User not authenticated</response>
@@ -307,33 +353,123 @@ namespace BikePartsTracker.Controllers
                     return Unauthorized();
                 }
 
-                // Find Strava integration with athlete data
+                // Find Strava integration
                 var integration = await _context.ExternalServiceIntegrations
                     .Include(i => i.StravaAthlete)
                     .FirstOrDefaultAsync(i => i.UserId == userId && i.ServiceType == ExternalServiceType.Strava);
 
-                if (integration == null || integration.StravaAthlete == null)
+                if (integration == null)
                 {
                     return NotFound(new { message = "Strava integration not found" });
                 }
 
-                var athleteDto = new StravaAthleteDto
+                // Ensure token is valid (refresh if needed)
+                var accessToken = await EnsureTokenValidAsync(integration);
+                Console.WriteLine("GetAthlete AccessToken: {0}", accessToken);
+                if (string.IsNullOrEmpty(accessToken))
                 {
-                    Id = integration.StravaAthlete.StravaId,
-                    Username = integration.StravaAthlete.Username,
-                    Firstname = integration.StravaAthlete.Firstname,
-                    Lastname = integration.StravaAthlete.Lastname,
-                    City = integration.StravaAthlete.City,
-                    State = integration.StravaAthlete.State,
-                    Country = integration.StravaAthlete.Country
-                };
+                    // Provide more detailed error information
+                    var hasAccessToken = !string.IsNullOrEmpty(integration.AccessToken);
+                    var hasRefreshToken = !string.IsNullOrEmpty(integration.RefreshToken);
+                    var isExpired = DateTime.UtcNow >= integration.TokenExpiry;
+                    
+                    var errorDetails = new
+                    {
+                        message = "Failed to obtain valid access token",
+                        details = new
+                        {
+                            hasAccessToken = hasAccessToken,
+                            hasRefreshToken = hasRefreshToken,
+                            isExpired = isExpired,
+                            tokenExpiry = integration.TokenExpiry,
+                            suggestion = !hasAccessToken 
+                                ? "Access token is missing. Please reconnect Strava." 
+                                : !hasRefreshToken 
+                                    ? "Refresh token is missing. Please reconnect Strava."
+                                    : isExpired 
+                                        ? "Token expired and refresh failed. Please reconnect Strava."
+                                        : "Unknown error. Please reconnect Strava."
+                        }
+                    };
+                    
+                    return StatusCode(500, errorDetails);
+                }
+
+                // Fetch fresh athlete data from Strava API
+                var athleteDto = await _stravaService.GetAthleteAsync(accessToken);
+                if (athleteDto == null)
+                {
+                    return NotFound(new { message = "Athlete data not found" });
+                }
 
                 return Ok(athleteDto);
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(500, new { message = $"Error fetching from Strava API: {ex.Message}" });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = $"An error occurred: {ex.Message}" });
             }
+        }
+
+        /// <summary>
+        /// Ensures the Strava access token is valid, refreshing it if necessary
+        /// </summary>
+        /// <param name="integration">The Strava integration</param>
+        /// <returns>Valid access token</returns>
+        private async Task<string?> EnsureTokenValidAsync(ExternalServiceIntegration integration)
+        {
+            // Check if access token exists
+            if (string.IsNullOrEmpty(integration.AccessToken))
+            {
+                // No access token stored - cannot proceed
+                return null;
+            }
+
+            // Check if token is expired or will expire within 5 minutes
+            var tokenExpiryTime = integration.TokenExpiry;
+            var bufferTime = TimeSpan.FromMinutes(5);
+            
+            if (DateTime.UtcNow.Add(bufferTime) >= tokenExpiryTime)
+            {
+                // Token is expired or about to expire, refresh it
+                if (string.IsNullOrEmpty(integration.RefreshToken))
+                {
+                    // No refresh token available - cannot refresh
+                    return null;
+                }
+
+                try
+                {
+                    var tokenResponse = await _stravaService.RefreshTokenAsync(integration.RefreshToken);
+                    if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
+                    {
+                        // Refresh failed or returned invalid response
+                        return null;
+                    }
+
+                    // Update integration with new tokens
+                    integration.AccessToken = tokenResponse.AccessToken;
+                    integration.RefreshToken = tokenResponse.RefreshToken; // Important: refresh token also changes!
+                    integration.TokenExpiry = DateTimeOffset.FromUnixTimeSeconds(tokenResponse.ExpiresAt).UtcDateTime;
+                    integration.UpdatedAt = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync();
+
+                    return tokenResponse.AccessToken;
+                }
+                catch (Exception ex)
+                {
+                    // If refresh fails, try using the existing token anyway (if it exists)
+                    // Log the exception for debugging
+                    // Note: In production, you might want to log this to a logging service
+                    return string.IsNullOrEmpty(integration.AccessToken) ? null : integration.AccessToken;
+                }
+            }
+
+            return integration.AccessToken;
         }
     }
 }

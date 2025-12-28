@@ -4,8 +4,7 @@ namespace BikePartsTracker.DTOs
 {
     public class CreateBikeDto
     {
-        [Required]
-        public string StravaBikeId { get; set; } = string.Empty;
+        public string? StravaBikeId { get; set; }
 
         [Required]
         public Guid UserId { get; set; }
