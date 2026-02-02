@@ -21,5 +21,10 @@ namespace BikePartsTracker.Models
         /// External service integrations (Strava, Komoot, etc.)
         /// </summary>
         public ICollection<ExternalServiceIntegration> ExternalServiceIntegrations { get; set; } = new List<ExternalServiceIntegration>();
+
+        /// <summary>
+        /// User settings/preferences
+        /// </summary>
+        public UserSettings? Settings { get; set; }
     }
 }

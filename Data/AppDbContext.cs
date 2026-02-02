@@ -8,6 +8,7 @@ namespace BikePartsTracker.Data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) {}
 
         public DbSet<User> Users { get; set; }
+        public DbSet<UserSettings> UserSettings { get; set; }
         public DbSet<Bike> Bikes { get; set; }
         public DbSet<BikePart> BikeParts { get; set; }
         public DbSet<PartUsageHistory> PartUsageHistories { get; set; }
@@ -49,6 +50,13 @@ namespace BikePartsTracker.Data
             modelBuilder.Entity<ExternalServiceIntegration>()
                 .HasIndex(e => new { e.UserId, e.ServiceType })
                 .IsUnique();
+
+            // User settings one-to-one relationship
+            modelBuilder.Entity<UserSettings>()
+                .HasOne(us => us.User)
+                .WithOne(u => u.Settings)
+                .HasForeignKey<UserSettings>(us => us.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using BikePartsTracker.Data;
 using BikePartsTracker.Models;
+using BikePartsTracker.DTOs;
 
 namespace BikePartsTracker.Controllers
 {
@@ -103,6 +106,108 @@ namespace BikePartsTracker.Controllers
         private bool UserExists(Guid id)
         {
             return _context.Users.Any(e => e.Id == id);
+        }
+
+        /// <summary>
+        /// Get user settings for the authenticated user
+        /// </summary>
+        /// <returns>User settings</returns>
+        /// <response code="200">Returns user settings</response>
+        /// <response code="401">User not authenticated</response>
+        /// <response code="404">User settings not found</response>
+        [HttpGet("settings")]
+        [Authorize]
+        [ProducesResponseType(typeof(UserSettingsDto), 200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(404)]
+        public async Task<ActionResult<UserSettingsDto>> GetUserSettings()
+        {
+            // Get current user from JWT token
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var settings = await _context.UserSettings
+                .FirstOrDefaultAsync(us => us.UserId == userId);
+
+            if (settings == null)
+            {
+                return NotFound(new { message = "User settings not found" });
+            }
+
+            return Ok(new UserSettingsDto
+            {
+                DefaultChainCycleLength = settings.DefaultChainCycleLength,
+                DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm
+            });
+        }
+
+        /// <summary>
+        /// Update user settings for the authenticated user
+        /// </summary>
+        /// <param name="updateDto">Settings to update</param>
+        /// <returns>Updated user settings</returns>
+        /// <response code="200">Settings updated successfully</response>
+        /// <response code="400">Invalid request data</response>
+        /// <response code="401">User not authenticated</response>
+        [HttpPut("settings")]
+        [Authorize]
+        [ProducesResponseType(typeof(UserSettingsDto), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
+        public async Task<ActionResult<UserSettingsDto>> UpdateUserSettings([FromBody] UpdateUserSettingsDto updateDto)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            // Get current user from JWT token
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized();
+            }
+
+            // Verify user exists
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            // Find existing settings or create new
+            var settings = await _context.UserSettings
+                .FirstOrDefaultAsync(us => us.UserId == userId);
+
+            if (settings == null)
+            {
+                // Create new settings
+                settings = new UserSettings
+                {
+                    UserId = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.UserSettings.Add(settings);
+            }
+            else
+            {
+                settings.UpdatedAt = DateTime.UtcNow;
+            }
+
+            settings.DefaultChainCycleLength = updateDto.DefaultChainCycleLength;
+            settings.DefaultChainCycleIntervalKm = updateDto.DefaultChainCycleIntervalKm;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new UserSettingsDto
+            {
+                DefaultChainCycleLength = settings.DefaultChainCycleLength,
+                DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm
+            });
         }
     }
 }

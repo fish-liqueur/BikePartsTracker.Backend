@@ -20,8 +20,7 @@ namespace BikePartsTracker.DTOs
         [Required]
         public string Name { get; set; } = string.Empty;
 
-        [Required]
-        public string Type { get; set; } = string.Empty;
+        public string? Type { get; set; } = string.Empty;
 
         /// <summary>
         /// Total distance in km (user's tracking)

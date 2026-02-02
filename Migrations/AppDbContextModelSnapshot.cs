@@ -234,6 +234,28 @@ namespace BikePartsTracker.Backend.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("BikePartsTracker.Models.UserSettings", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DefaultChainCycleIntervalKm")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DefaultChainCycleLength")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserSettings");
+                });
+
             modelBuilder.Entity("BikePartsTracker.Models.Bike", b =>
                 {
                     b.HasOne("BikePartsTracker.Models.User", "User")
@@ -289,6 +311,17 @@ namespace BikePartsTracker.Backend.Migrations
                     b.Navigation("Integration");
                 });
 
+            modelBuilder.Entity("BikePartsTracker.Models.UserSettings", b =>
+                {
+                    b.HasOne("BikePartsTracker.Models.User", "User")
+                        .WithOne("Settings")
+                        .HasForeignKey("BikePartsTracker.Models.UserSettings", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("BikePartsTracker.Models.Bike", b =>
                 {
                     b.Navigation("Parts");
@@ -309,6 +342,8 @@ namespace BikePartsTracker.Backend.Migrations
                     b.Navigation("Bikes");
 
                     b.Navigation("ExternalServiceIntegrations");
+
+                    b.Navigation("Settings");
                 });
 #pragma warning restore 612, 618
         }
