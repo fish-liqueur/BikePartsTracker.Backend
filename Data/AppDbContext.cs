@@ -26,7 +26,8 @@ namespace BikePartsTracker.Data
             modelBuilder.Entity<Bike>()
                 .HasMany(b => b.Parts)
                 .WithOne(p => p.Bike)
-                .HasForeignKey(p => p.BikeId);
+                .HasForeignKey(p => p.BikeId)
+                .IsRequired(false);
 
             modelBuilder.Entity<BikePart>()
                 .HasMany(p => p.UsageHistory)
