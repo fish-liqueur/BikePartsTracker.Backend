@@ -14,7 +14,11 @@ namespace BikePartsTracker.DTOs
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public int DefaultChainCycleLength { get; set; }
+        public int DefaultChainCycleInterval { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 }
 

@@ -14,4 +14,33 @@ namespace BikePartsTracker.Models
         Garmin = 3
         // Add more services as needed
     }
+
+    public enum PartType
+    {
+        Chain,
+        Cassette,
+        Chainring,
+        BrakePads,
+        Tyres,
+        Battery,
+        BottomBracket,
+        Headset,
+        Hub,
+        Pedals,
+        Other
+    }
+
+    public enum BikeType
+    {
+        Road,
+        Mountain,
+        Gravel,
+        EBike,
+        City,
+        Touring,
+        Cargo,
+        Fixed,
+        Rat,
+        Other
+    }
 }

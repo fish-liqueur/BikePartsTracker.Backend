@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using BikePartsTracker.Models;
 
 namespace BikePartsTracker.DTOs
 {
@@ -20,7 +21,7 @@ namespace BikePartsTracker.DTOs
         [Required]
         public string Name { get; set; } = string.Empty;
 
-        public string? Type { get; set; } = string.Empty;
+        public BikeType? Type { get; set; }
 
         /// <summary>
         /// Total distance in km (user's tracking)

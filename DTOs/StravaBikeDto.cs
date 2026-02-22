@@ -13,7 +13,7 @@ namespace BikePartsTracker.DTOs
         /// <summary>
         /// Whether this is the primary bike
         /// </summary>
-        public bool Primary { get; set; }
+        public bool? Primary { get; set; }
 
         /// <summary>
         /// Bike name
@@ -21,9 +21,14 @@ namespace BikePartsTracker.DTOs
         public string Name { get; set; } = string.Empty;
 
         /// <summary>
+        /// Resource state from Strava API
+        /// </summary>
+        public int? ResourceState { get; set; }
+
+        /// <summary>
         /// Total distance in meters
         /// </summary>
-        public double Distance { get; set; }
+        public double? Distance { get; set; }
     }
 }
 

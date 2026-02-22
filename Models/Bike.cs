@@ -15,6 +15,9 @@ namespace BikePartsTracker.Models
         public required User User { get; set; }
 
         public string Name { get; set; } = string.Empty;
+        
+        public string Description { get; set; } = string.Empty;
+        
         public string Type { get; set; } = string.Empty;
 
         public double TotalDistance { get; set; } // in km
@@ -29,7 +32,29 @@ namespace BikePartsTracker.Models
         /// </summary>
         public bool IsActive { get; set; } = true;
 
+        /// <summary>
+        /// List of chain IDs in the current cycle (can include nulls for empty slots)
+        /// </summary>
+        public string ChainsInCycleJson { get; set; } = "[]";
+
+        /// <summary>
+        /// Currently active chain ID
+        /// </summary>
+        public Guid? ActiveChainId { get; set; }
+
+        /// <summary>
+        /// Chain cycle interval in kilometers
+        /// </summary>
+        public int? ChainCycleInterval { get; set; }
+
+        /// <summary>
+        /// Number of chains in a cycle
+        /// </summary>
+        public int? ChainsCycleLength { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<BikePart> Parts { get; set; } = new List<BikePart>();
     }

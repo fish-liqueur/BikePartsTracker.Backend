@@ -3,6 +3,7 @@ using System;
 using BikePartsTracker.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BikePartsTracker.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260120190536_AddUserSettings")]
+    partial class AddUserSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -28,25 +31,8 @@ namespace BikePartsTracker.Backend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ActiveChainId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int?>("ChainCycleInterval")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("ChainsCycleLength")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ChainsInCycleJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -68,9 +54,6 @@ namespace BikePartsTracker.Backend.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -87,37 +70,19 @@ namespace BikePartsTracker.Backend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("BikeId")
+                    b.Property<Guid>("BikeId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("Brand")
-                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
 
                     b.Property<string>("HistoryJson")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("InstallationDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double?>("MileageAtInstallation")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Model")
-                        .HasColumnType("text");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<int>("PartType")
-                        .HasColumnType("integer");
 
                     b.Property<int>("ScheduleType")
                         .HasColumnType("integer");
@@ -128,9 +93,6 @@ namespace BikePartsTracker.Backend.Migrations
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -283,10 +245,10 @@ namespace BikePartsTracker.Backend.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("DefaultChainCycleIntervalKm")
+                    b.Property<int?>("DefaultChainCycleIntervalKm")
                         .HasColumnType("integer");
 
-                    b.Property<int>("DefaultChainCycleLength")
+                    b.Property<int?>("DefaultChainCycleLength")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -312,7 +274,9 @@ namespace BikePartsTracker.Backend.Migrations
                 {
                     b.HasOne("BikePartsTracker.Models.Bike", "Bike")
                         .WithMany("Parts")
-                        .HasForeignKey("BikeId");
+                        .HasForeignKey("BikeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Bike");
                 });

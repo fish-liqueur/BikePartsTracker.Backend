@@ -1,12 +1,13 @@
-using System.ComponentModel.DataAnnotations;
 using BikePartsTracker.Models;
 
 namespace BikePartsTracker.DTOs
 {
-    public class CreateBikeDto
+    /// <summary>
+    /// DTO for updating a bike - allows null to explicitly clear optional fields
+    /// </summary>
+    public class UpdateBikeDto
     {
-        [Required]
-        public string Name { get; set; } = string.Empty;
+        public string? Name { get; set; }
 
         public string? Description { get; set; }
 
@@ -20,16 +21,21 @@ namespace BikePartsTracker.DTOs
 
         public int? ChainCycleInterval { get; set; }
 
+        /// <summary>
+        /// null = clear, undefined = no change, array = set value
+        /// Accepts strings (will be converted to Guids) or Guids
+        /// </summary>
         public List<Guid?>? ChainsInCycle { get; set; }
 
+        /// <summary>
+        /// null = clear, undefined = no change, string = set value
+        /// Accepts string (will be converted to Guid) or Guid
+        /// </summary>
         public Guid? ActiveChainId { get; set; }
-
-        public DateTime? CreatedAt { get; set; }
-
-        public DateTime? UpdatedAt { get; set; }
 
         public string? StravaId { get; set; }
 
         public bool? IsActive { get; set; }
     }
 }
+
