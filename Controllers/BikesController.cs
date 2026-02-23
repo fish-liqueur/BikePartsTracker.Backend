@@ -78,9 +78,7 @@ namespace BikePartsTracker.Controllers
                 TotalDistance = createBikeDto.TotalDistance ?? 0.0,
                 StravaDistance = createBikeDto.StravaDistance ?? 0.0,
                 IsActive = createBikeDto.IsActive ?? true,
-                ChainsInCycleJson = createBikeDto.ChainsInCycle != null 
-                    ? System.Text.Json.JsonSerializer.Serialize(createBikeDto.ChainsInCycle) 
-                    : "[]",
+                ChainsInCycle = createBikeDto.ChainsInCycle ?? new List<Guid?>(),
                 ActiveChainId = createBikeDto.ActiveChainId,
                 ChainCycleInterval = createBikeDto.ChainCycleInterval,
                 ChainsCycleLength = createBikeDto.ChainsCycleLength,
@@ -167,23 +165,49 @@ namespace BikePartsTracker.Controllers
             bool chainsInCycleUpdated = false;
             if (updateBikeDto.ChainsInCycle != null)
             {
-                // ChainsInCycle is already List<Guid?>, so we can use it directly
-                bike.ChainsInCycleJson = System.Text.Json.JsonSerializer.Serialize(updateBikeDto.ChainsInCycle);
+                // Convert string IDs to Guids
+                var guidList = new List<Guid?>();
+                foreach (var chainIdStr in updateBikeDto.ChainsInCycle)
+                {
+                    if (chainIdStr == null)
+                    {
+                        guidList.Add(null);
+                    }
+                    else if (Guid.TryParse(chainIdStr, out var guid))
+                    {
+                        guidList.Add(guid);
+                    }
+                    else
+                    {
+                        ModelState.AddModelError(nameof(UpdateBikeDto.ChainsInCycle), 
+                            $"Invalid Guid format in ChainsInCycle: '{chainIdStr}'. Expected a valid Guid.");
+                        return BadRequest(ModelState);
+                    }
+                }
+                // Use the ChainsInCycle property - it will automatically serialize to JSON
+                bike.ChainsInCycle = guidList;
                 chainsInCycleUpdated = true;
             }
 
             // Handle ActiveChainId - update if provided
             // If ChainsInCycle is being updated, also update ActiveChainId (allows clearing)
             // Otherwise, only update if it has a value
-            if (chainsInCycleUpdated)
+            if (chainsInCycleUpdated || !string.IsNullOrEmpty(updateBikeDto.ActiveChainId))
             {
-                // If ChainsInCycle is updated, always update ActiveChainId (allows clearing)
-                bike.ActiveChainId = updateBikeDto.ActiveChainId;
-            }
-            else if (updateBikeDto.ActiveChainId.HasValue)
-            {
-                // Otherwise, only update if ActiveChainId has a value
-                bike.ActiveChainId = updateBikeDto.ActiveChainId.Value;
+                if (string.IsNullOrEmpty(updateBikeDto.ActiveChainId))
+                {
+                    bike.ActiveChainId = null;
+                }
+                else if (Guid.TryParse(updateBikeDto.ActiveChainId, out var activeChainGuid))
+                {
+                    bike.ActiveChainId = activeChainGuid;
+                }
+                else
+                {
+                    ModelState.AddModelError(nameof(UpdateBikeDto.ActiveChainId), 
+                        $"Invalid Guid format for ActiveChainId: '{updateBikeDto.ActiveChainId}'. Expected a valid Guid.");
+                    return BadRequest(ModelState);
+                }
             }
 
             if (updateBikeDto.StravaId != null)

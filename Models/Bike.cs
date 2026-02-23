@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace BikePartsTracker.Models
 {
@@ -34,7 +35,39 @@ namespace BikePartsTracker.Models
 
         /// <summary>
         /// List of chain IDs in the current cycle (can include nulls for empty slots)
+        /// This property is automatically serialized/deserialized from ChainsInCycleJson
         /// </summary>
+        [NotMapped]
+        public List<Guid?> ChainsInCycle
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(ChainsInCycleJson))
+                    return new List<Guid?>();
+                
+                try
+                {
+                    return System.Text.Json.JsonSerializer.Deserialize<List<Guid?>>(ChainsInCycleJson) 
+                        ?? new List<Guid?>();
+                }
+                catch
+                {
+                    return new List<Guid?>();
+                }
+            }
+            set
+            {
+                ChainsInCycleJson = value != null 
+                    ? System.Text.Json.JsonSerializer.Serialize(value) 
+                    : "[]";
+            }
+        }
+
+        /// <summary>
+        /// JSON storage for ChainsInCycle (used by EF Core, hidden from API responses)
+        /// </summary>
+        [Column("ChainsInCycleJson")]
+        [JsonIgnore]
         public string ChainsInCycleJson { get; set; } = "[]";
 
         /// <summary>

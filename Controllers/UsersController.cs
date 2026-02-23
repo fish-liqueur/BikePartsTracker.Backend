@@ -132,9 +132,19 @@ namespace BikePartsTracker.Controllers
             var settings = await _context.UserSettings
                 .FirstOrDefaultAsync(us => us.UserId == userId);
 
+            // Create default settings if they don't exist
             if (settings == null)
             {
-                return NotFound(new { message = "User settings not found" });
+                settings = new UserSettings
+                {
+                    UserId = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                    // DefaultChainCycleLength and DefaultChainCycleIntervalKm 
+                    // will use their default values from the model (700 and 3)
+                };
+                _context.UserSettings.Add(settings);
+                await _context.SaveChangesAsync();
             }
 
             return Ok(new UserSettingsDto
