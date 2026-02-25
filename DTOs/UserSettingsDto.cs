@@ -7,6 +7,8 @@ namespace BikePartsTracker.DTOs
     {
         public int DefaultChainCycleLength { get; set; }
         public int DefaultChainCycleIntervalKm { get; set; }
+        public bool defaultUseChainCycle { get; set; }
+        public bool showTips { get; set; }
     }
 
     /// <summary>
@@ -14,8 +16,10 @@ namespace BikePartsTracker.DTOs
     /// </summary>
     public class UpdateUserSettingsDto
     {
-        public int DefaultChainCycleLength { get; set; }
-        public int DefaultChainCycleIntervalKm { get; set; }
+        public int? DefaultChainCycleLength { get; set; }
+        public int? DefaultChainCycleIntervalKm { get; set; }
+        public bool? defaultUseChainCycle { get; set; }
+        public bool? showTips { get; set; }
     }
 }
 

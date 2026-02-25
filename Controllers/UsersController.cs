@@ -141,7 +141,7 @@ namespace BikePartsTracker.Controllers
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                     // DefaultChainCycleLength and DefaultChainCycleIntervalKm 
-                    // will use their default values from the model (700 and 3)
+                    // will use their default values from the model
                 };
                 _context.UserSettings.Add(settings);
                 await _context.SaveChangesAsync();
@@ -150,7 +150,9 @@ namespace BikePartsTracker.Controllers
             return Ok(new UserSettingsDto
             {
                 DefaultChainCycleLength = settings.DefaultChainCycleLength,
-                DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm
+                DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm,
+                defaultUseChainCycle = settings.defaultUseChainCycle,
+                showTips = settings.showTips
             });
         }
 
@@ -208,15 +210,23 @@ namespace BikePartsTracker.Controllers
                 settings.UpdatedAt = DateTime.UtcNow;
             }
 
-            settings.DefaultChainCycleLength = updateDto.DefaultChainCycleLength;
-            settings.DefaultChainCycleIntervalKm = updateDto.DefaultChainCycleIntervalKm;
+            if (updateDto.DefaultChainCycleLength.HasValue)
+                settings.DefaultChainCycleLength = updateDto.DefaultChainCycleLength.Value;
+            if (updateDto.DefaultChainCycleIntervalKm.HasValue)
+                settings.DefaultChainCycleIntervalKm = updateDto.DefaultChainCycleIntervalKm.Value;
+            if (updateDto.defaultUseChainCycle.HasValue)
+                settings.defaultUseChainCycle = updateDto.defaultUseChainCycle.Value;
+            if (updateDto.showTips.HasValue)
+                settings.showTips = updateDto.showTips.Value;
 
             await _context.SaveChangesAsync();
 
             return Ok(new UserSettingsDto
             {
                 DefaultChainCycleLength = settings.DefaultChainCycleLength,
-                DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm
+                DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm,
+                defaultUseChainCycle = settings.defaultUseChainCycle,
+                showTips = settings.showTips
             });
         }
     }
