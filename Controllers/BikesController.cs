@@ -95,7 +95,7 @@ namespace BikePartsTracker.Controllers
         // PUT: api/Bikes/5
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> PutBike(Guid id, [FromBody] UpdateBikeDto updateBikeDto)
+        public async Task<ActionResult<Bike>> PutBike(Guid id, [FromBody] UpdateBikeDto updateBikeDto)
         {
             if (!ModelState.IsValid)
             {
@@ -238,7 +238,9 @@ namespace BikePartsTracker.Controllers
                 }
             }
 
-            return NoContent();
+            await _context.Entry(bike).Collection(b => b.Parts).LoadAsync();
+
+            return Ok(bike);
         }
 
         // DELETE: api/Bikes/5
