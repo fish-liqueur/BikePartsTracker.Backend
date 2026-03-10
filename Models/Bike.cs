@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
 
 namespace BikePartsTracker.Models
 {
@@ -16,15 +15,15 @@ namespace BikePartsTracker.Models
         public required User User { get; set; }
 
         public string Name { get; set; } = string.Empty;
-        
+
         public string Description { get; set; } = string.Empty;
-        
+
         public string Type { get; set; } = string.Empty;
 
         public double TotalDistance { get; set; } // in km
 
         /// <summary>
-        /// Distance from Strava in meters 
+        /// Distance from Strava in meters
         /// </summary>
         public double StravaDistance { get; set; }
 
@@ -33,62 +32,16 @@ namespace BikePartsTracker.Models
         /// </summary>
         public bool IsActive { get; set; } = true;
 
-        /// <summary>
-        /// List of chain IDs in the current cycle (can include nulls for empty slots)
-        /// This property is automatically serialized/deserialized from ChainsInCycleJson
-        /// </summary>
-        [NotMapped]
-        public List<Guid?> ChainsInCycle
-        {
-            get
-            {
-                if (string.IsNullOrWhiteSpace(ChainsInCycleJson))
-                    return new List<Guid?>();
-                
-                try
-                {
-                    return System.Text.Json.JsonSerializer.Deserialize<List<Guid?>>(ChainsInCycleJson) 
-                        ?? new List<Guid?>();
-                }
-                catch
-                {
-                    return new List<Guid?>();
-                }
-            }
-            set
-            {
-                ChainsInCycleJson = value != null 
-                    ? System.Text.Json.JsonSerializer.Serialize(value) 
-                    : "[]";
-            }
-        }
-
-        /// <summary>
-        /// JSON storage for ChainsInCycle (used by EF Core, hidden from API responses)
-        /// </summary>
-        [Column("ChainsInCycleJson")]
-        [JsonIgnore]
-        public string ChainsInCycleJson { get; set; } = "[]";
-
-        /// <summary>
-        /// Currently active chain ID
-        /// </summary>
-        public Guid? ActiveChainId { get; set; }
-
-        /// <summary>
-        /// Chain cycle interval in kilometers
-        /// </summary>
-        public int? ChainCycleInterval { get; set; }
-
-        /// <summary>
-        /// Number of chains in a cycle
-        /// </summary>
-        public int? ChainsCycleLength { get; set; }
-
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        
+
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<BikePart> Parts { get; set; } = new List<BikePart>();
+
+        /// <summary>
+        /// Chain rotation cycles configured for this bike.
+        /// Empty means no chain cycle is configured.
+        /// </summary>
+        public ICollection<ChainCycle> ChainCycles { get; set; } = new List<ChainCycle>();
     }
 }

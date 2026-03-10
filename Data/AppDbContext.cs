@@ -10,6 +10,7 @@ namespace BikePartsTracker.Data
         public DbSet<User> Users { get; set; }
         public DbSet<UserSettings> UserSettings { get; set; }
         public DbSet<Bike> Bikes { get; set; }
+        public DbSet<ChainCycle> ChainCycles { get; set; }
         public DbSet<BikePart> BikeParts { get; set; }
         public DbSet<PartUsageHistory> PartUsageHistories { get; set; }
         public DbSet<ExternalServiceIntegration> ExternalServiceIntegrations { get; set; }
@@ -28,6 +29,12 @@ namespace BikePartsTracker.Data
                 .WithOne(p => p.Bike)
                 .HasForeignKey(p => p.BikeId)
                 .IsRequired(false);
+
+            modelBuilder.Entity<Bike>()
+                .HasMany(b => b.ChainCycles)
+                .WithOne(c => c.Bike)
+                .HasForeignKey(c => c.BikeId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<BikePart>()
                 .HasMany(p => p.UsageHistory)

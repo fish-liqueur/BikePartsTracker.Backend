@@ -26,6 +26,7 @@ namespace BikePartsTracker.Controllers
             return await _context.Bikes
                 .Include(b => b.User)
                 .Include(b => b.Parts)
+                .Include(b => b.ChainCycles)
                 .ToListAsync();
         }
 
@@ -36,6 +37,7 @@ namespace BikePartsTracker.Controllers
             var bike = await _context.Bikes
                 .Include(b => b.User)
                 .Include(b => b.Parts)
+                .Include(b => b.ChainCycles)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (bike == null)
@@ -51,14 +53,12 @@ namespace BikePartsTracker.Controllers
         [Authorize]
         public async Task<ActionResult<Bike>> PostBike(CreateBikeDto createBikeDto)
         {
-            // Get current user from JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
 
-            // Load the user to satisfy the required navigation property
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
@@ -78,14 +78,27 @@ namespace BikePartsTracker.Controllers
                 TotalDistance = createBikeDto.TotalDistance ?? 0.0,
                 StravaDistance = createBikeDto.StravaDistance ?? 0.0,
                 IsActive = createBikeDto.IsActive ?? true,
-                ChainsInCycle = createBikeDto.ChainsInCycle ?? new List<Guid?>(),
-                ActiveChainId = createBikeDto.ActiveChainId,
-                ChainCycleInterval = createBikeDto.ChainCycleInterval,
-                ChainsCycleLength = createBikeDto.ChainsCycleLength,
                 CreatedAt = createBikeDto.CreatedAt ?? now,
                 UpdatedAt = createBikeDto.UpdatedAt ?? now
             };
-            
+
+            if (createBikeDto.ChainCycles != null)
+            {
+                foreach (var cycleDto in createBikeDto.ChainCycles)
+                {
+                    bike.ChainCycles.Add(new ChainCycle
+                    {
+                        Id = Guid.NewGuid(),
+                        Chains = cycleDto.Chains,
+                        ActiveChainId = cycleDto.ActiveChainId,
+                        IntervalKm = cycleDto.IntervalKm,
+                        CycleLength = cycleDto.CycleLength,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    });
+                }
+            }
+
             _context.Bikes.Add(bike);
             await _context.SaveChangesAsync();
 
@@ -102,16 +115,15 @@ namespace BikePartsTracker.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Get current user from JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
 
-            // Load the existing bike
             var bike = await _context.Bikes
                 .Include(b => b.User)
+                .Include(b => b.ChainCycles)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (bike == null)
@@ -119,105 +131,52 @@ namespace BikePartsTracker.Controllers
                 return NotFound();
             }
 
-            // Verify the bike belongs to the current user
             if (bike.UserId != userId)
             {
                 return Forbid();
             }
 
-            // Update only the fields provided in the DTO
             if (updateBikeDto.Name != null)
-            {
                 bike.Name = updateBikeDto.Name;
-            }
 
             if (updateBikeDto.Description != null)
-            {
                 bike.Description = updateBikeDto.Description;
-            }
 
             if (updateBikeDto.Type.HasValue)
-            {
                 bike.Type = updateBikeDto.Type.Value.ToString();
-            }
 
             if (updateBikeDto.TotalDistance.HasValue)
-            {
                 bike.TotalDistance = updateBikeDto.TotalDistance.Value;
-            }
 
             if (updateBikeDto.StravaDistance.HasValue)
-            {
                 bike.StravaDistance = updateBikeDto.StravaDistance.Value;
-            }
-
-            if (updateBikeDto.ChainsCycleLength.HasValue)
-            {
-                bike.ChainsCycleLength = updateBikeDto.ChainsCycleLength.Value;
-            }
-
-            if (updateBikeDto.ChainCycleInterval.HasValue)
-            {
-                bike.ChainCycleInterval = updateBikeDto.ChainCycleInterval.Value;
-            }
-
-            // Handle ChainsInCycle - update if provided (null means clear, array means set)
-            bool chainsInCycleUpdated = false;
-            if (updateBikeDto.ChainsInCycle != null)
-            {
-                // Convert string IDs to Guids
-                var guidList = new List<Guid?>();
-                foreach (var chainIdStr in updateBikeDto.ChainsInCycle)
-                {
-                    if (chainIdStr == null)
-                    {
-                        guidList.Add(null);
-                    }
-                    else if (Guid.TryParse(chainIdStr, out var guid))
-                    {
-                        guidList.Add(guid);
-                    }
-                    else
-                    {
-                        ModelState.AddModelError(nameof(UpdateBikeDto.ChainsInCycle), 
-                            $"Invalid Guid format in ChainsInCycle: '{chainIdStr}'. Expected a valid Guid.");
-                        return BadRequest(ModelState);
-                    }
-                }
-                // Use the ChainsInCycle property - it will automatically serialize to JSON
-                bike.ChainsInCycle = guidList;
-                chainsInCycleUpdated = true;
-            }
-
-            // Handle ActiveChainId - update if provided
-            // If ChainsInCycle is being updated, also update ActiveChainId (allows clearing)
-            // Otherwise, only update if it has a value
-            if (chainsInCycleUpdated || !string.IsNullOrEmpty(updateBikeDto.ActiveChainId))
-            {
-                if (string.IsNullOrEmpty(updateBikeDto.ActiveChainId))
-                {
-                    bike.ActiveChainId = null;
-                }
-                else if (Guid.TryParse(updateBikeDto.ActiveChainId, out var activeChainGuid))
-                {
-                    bike.ActiveChainId = activeChainGuid;
-                }
-                else
-                {
-                    ModelState.AddModelError(nameof(UpdateBikeDto.ActiveChainId), 
-                        $"Invalid Guid format for ActiveChainId: '{updateBikeDto.ActiveChainId}'. Expected a valid Guid.");
-                    return BadRequest(ModelState);
-                }
-            }
 
             if (updateBikeDto.StravaId != null)
-            {
                 bike.StravaBikeId = updateBikeDto.StravaId;
-            }
 
             if (updateBikeDto.IsActive.HasValue)
-            {
                 bike.IsActive = updateBikeDto.IsActive.Value;
+
+            // null = no change; empty array = clear all; non-empty array = full replacement
+            if (updateBikeDto.ChainCycles != null)
+            {
+                _context.ChainCycles.RemoveRange(bike.ChainCycles);
+                bike.ChainCycles.Clear();
+
+                var now = DateTime.UtcNow;
+                foreach (var cycleDto in updateBikeDto.ChainCycles)
+                {
+                    bike.ChainCycles.Add(new ChainCycle
+                    {
+                        Id = cycleDto.Id ?? Guid.NewGuid(),
+                        Chains = cycleDto.Chains ?? new List<Guid>(),
+                        ActiveChainId = cycleDto.ActiveChainId,
+                        IntervalKm = cycleDto.IntervalKm,
+                        CycleLength = cycleDto.CycleLength,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    });
+                }
             }
 
             bike.UpdatedAt = DateTime.UtcNow;
@@ -262,11 +221,6 @@ namespace BikePartsTracker.Controllers
         /// <summary>
         /// Sync bikes (merge/update bikes from frontend, typically after Strava import)
         /// </summary>
-        /// <param name="request">Bikes to sync</param>
-        /// <returns>Success response</returns>
-        /// <response code="200">Bikes synced successfully</response>
-        /// <response code="400">Invalid request data or validation error</response>
-        /// <response code="401">User not authenticated</response>
         [HttpPost("sync")]
         [Authorize]
         [ProducesResponseType(200)]
@@ -281,19 +235,17 @@ namespace BikePartsTracker.Controllers
 
             try
             {
-                // Get current user from JWT token
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
                 {
                     return Unauthorized();
                 }
 
-                // Validate: check for duplicate Strava bike IDs
                 var stravaBikeIds = request.Bikes
                     .Where(b => !string.IsNullOrEmpty(b.StravaBikeId))
                     .Select(b => b.StravaBikeId!)
                     .ToList();
-                
+
                 var duplicateStravaIds = stravaBikeIds
                     .GroupBy(id => id)
                     .Where(g => g.Count() > 1)
@@ -305,30 +257,25 @@ namespace BikePartsTracker.Controllers
                     return BadRequest(new { message = $"Duplicate Strava bike IDs found: {string.Join(", ", duplicateStravaIds)}" });
                 }
 
-                // Get all existing bikes for this user
                 var existingBikes = await _context.Bikes
                     .Where(b => b.UserId == userId)
                     .ToListAsync();
 
-                // Get user from database (needed for new bikes)
                 var user = await _context.Users.FindAsync(userId);
                 if (user == null)
                 {
                     return Unauthorized();
                 }
 
-                // Process each bike in the request
                 foreach (var bikeDto in request.Bikes)
                 {
                     Bike? bike = null;
 
-                    // Try to find existing bike by internal ID
                     if (bikeDto.Id.HasValue)
                     {
                         bike = existingBikes.FirstOrDefault(b => b.Id == bikeDto.Id.Value);
                     }
 
-                    // If not found and has Strava ID, try to find by Strava ID
                     if (bike == null && !string.IsNullOrEmpty(bikeDto.StravaBikeId))
                     {
                         bike = existingBikes.FirstOrDefault(b => b.StravaBikeId == bikeDto.StravaBikeId);
@@ -336,7 +283,6 @@ namespace BikePartsTracker.Controllers
 
                     if (bike != null)
                     {
-                        // Update existing bike
                         bike.Name = bikeDto.Name;
                         bike.Type = bikeDto.Type?.ToString() ?? string.Empty;
                         bike.TotalDistance = bikeDto.TotalDistance;
@@ -347,7 +293,6 @@ namespace BikePartsTracker.Controllers
                     }
                     else
                     {
-                        // Create new bike
                         var now = DateTime.UtcNow;
                         bike = new Bike
                         {
@@ -361,7 +306,6 @@ namespace BikePartsTracker.Controllers
                             StravaDistance = bikeDto.StravaDistance,
                             StravaBikeId = bikeDto.StravaBikeId,
                             IsActive = bikeDto.IsActive,
-                            ChainsInCycleJson = "[]",
                             CreatedAt = now,
                             UpdatedAt = now
                         };
