@@ -21,19 +21,19 @@ namespace BikePartsTracker.Models
         /// Serialized to/from ChainsJson for persistence.
         /// </summary>
         [NotMapped]
-        public List<Guid> Chains
+        public List<Guid?> Chains
         {
             get
             {
                 if (string.IsNullOrWhiteSpace(ChainsJson))
-                    return new List<Guid>();
+                    return new List<Guid?>();
                 try
                 {
-                    return JsonSerializer.Deserialize<List<Guid>>(ChainsJson) ?? new List<Guid>();
+                    return JsonSerializer.Deserialize<List<Guid?>>(ChainsJson) ?? new List<Guid?>();
                 }
                 catch
                 {
-                    return new List<Guid>();
+                    return new List<Guid?>();
                 }
             }
             set

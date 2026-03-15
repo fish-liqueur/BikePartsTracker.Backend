@@ -24,7 +24,7 @@ namespace BikePartsTracker.DTOs
         /// <summary>
         /// Ordered list of chain part IDs forming the rotation.
         /// </summary>
-        public List<Guid> Chains { get; set; } = new List<Guid>();
+        public List<Guid?> Chains { get; set; } = new List<Guid?>();
         /// <summary>
         /// ID of the chain part currently installed.
         /// </summary>

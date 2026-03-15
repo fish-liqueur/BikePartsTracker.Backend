@@ -40,9 +40,9 @@ namespace BikePartsTracker.DTOs
         public Guid? Id { get; set; }
 
         /// <summary>
-        /// Ordered list of chain part IDs. Null treated as empty list.
+        /// Ordered list of chain part IDs. Null entries are ignored.
         /// </summary>
-        public List<Guid>? Chains { get; set; }
+        public List<Guid?>? Chains { get; set; }
 
         /// <summary>
         /// ID of currently installed chain. Null = no active chain (clear).

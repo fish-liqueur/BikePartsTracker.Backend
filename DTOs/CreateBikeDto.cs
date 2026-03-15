@@ -30,9 +30,9 @@ namespace BikePartsTracker.DTOs
     public class CreateChainCycleDto
     {
         /// <summary>
-        /// Ordered list of chain part IDs forming the rotation.
+        /// Ordered list of chain part IDs forming the rotation. 
         /// </summary>
-        public List<Guid> Chains { get; set; } = new List<Guid>();
+        public List<Guid?>? Chains { get; set; }
 
         /// <summary>
         /// ID of the chain part currently installed. Null means none active yet.

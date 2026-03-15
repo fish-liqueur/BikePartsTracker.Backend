@@ -89,7 +89,7 @@ namespace BikePartsTracker.Controllers
                     bike.ChainCycles.Add(new ChainCycle
                     {
                         Id = Guid.NewGuid(),
-                        Chains = cycleDto.Chains,
+                        Chains = cycleDto.Chains ?? new List<Guid?>(),
                         ActiveChainId = cycleDto.ActiveChainId,
                         IntervalKm = cycleDto.IntervalKm,
                         CycleLength = cycleDto.CycleLength,
@@ -160,16 +160,22 @@ namespace BikePartsTracker.Controllers
             // null = no change; empty array = clear all; non-empty array = full replacement
             if (updateBikeDto.ChainCycles != null)
             {
-                _context.ChainCycles.RemoveRange(bike.ChainCycles);
-                bike.ChainCycles.Clear();
+                // Snapshot before touching the collection to avoid EF relationship-fixup
+                // processing the same deletion twice when the navigation is also modified.
+                var cyclesToDelete = bike.ChainCycles.ToList();
+                foreach (var cycle in cyclesToDelete)
+                    _context.Entry(cycle).State = EntityState.Deleted;
 
                 var now = DateTime.UtcNow;
                 foreach (var cycleDto in updateBikeDto.ChainCycles)
                 {
-                    bike.ChainCycles.Add(new ChainCycle
+                    // Always generate a fresh ID to avoid EF converting a Deleted+Added
+                    // pair with the same PK into an UPDATE that finds 0 rows.
+                    _context.ChainCycles.Add(new ChainCycle
                     {
-                        Id = cycleDto.Id ?? Guid.NewGuid(),
-                        Chains = cycleDto.Chains ?? new List<Guid>(),
+                        Id = Guid.NewGuid(),
+                        BikeId = id,
+                        Chains = cycleDto.Chains ?? new List<Guid?>(),
                         ActiveChainId = cycleDto.ActiveChainId,
                         IntervalKm = cycleDto.IntervalKm,
                         CycleLength = cycleDto.CycleLength,
@@ -198,6 +204,7 @@ namespace BikePartsTracker.Controllers
             }
 
             await _context.Entry(bike).Collection(b => b.Parts).LoadAsync();
+            await _context.Entry(bike).Collection(b => b.ChainCycles).LoadAsync();
 
             return Ok(bike);
         }
