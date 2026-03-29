@@ -16,6 +16,8 @@ namespace BikePartsTracker.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<Bike> Bikes { get; set; } = new List<Bike>();
+
+        public ICollection<BikePart> Parts { get; set; } = new List<BikePart>();
         
         /// <summary>
         /// External service integrations (Strava, Komoot, etc.)

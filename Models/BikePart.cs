@@ -8,6 +8,10 @@ namespace BikePartsTracker.Models
         [Key]
         public Guid Id { get; set; }
 
+        [ForeignKey(nameof(User))]
+        public Guid UserId { get; set; }
+        public User? User { get; set; }
+
         [ForeignKey(nameof(Bike))]
         public Guid? BikeId { get; set; }
         public Bike? Bike { get; set; }

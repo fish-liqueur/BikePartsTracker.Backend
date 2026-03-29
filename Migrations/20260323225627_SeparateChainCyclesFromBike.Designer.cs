@@ -3,6 +3,7 @@ using System;
 using BikePartsTracker.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BikePartsTracker.Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260323225627_SeparateChainCyclesFromBike")]
+    partial class SeparateChainCyclesFromBike
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -80,6 +83,12 @@ namespace BikePartsTracker.Backend.Migrations
                     b.Property<string>("Brand")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("ChainCycleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("ChainCyclePosition")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -126,6 +135,8 @@ namespace BikePartsTracker.Backend.Migrations
 
                     b.HasIndex("BikeId");
 
+                    b.HasIndex("ChainCycleId");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("BikeParts");
@@ -142,11 +153,6 @@ namespace BikePartsTracker.Backend.Migrations
 
                     b.Property<Guid>("BikeId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("ChainsJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("ChainsJson");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -345,6 +351,11 @@ namespace BikePartsTracker.Backend.Migrations
                         .WithMany("Parts")
                         .HasForeignKey("BikeId");
 
+                    b.HasOne("BikePartsTracker.Models.ChainCycle", "ChainCycle")
+                        .WithMany("Parts")
+                        .HasForeignKey("ChainCycleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("BikePartsTracker.Models.User", "User")
                         .WithMany("Parts")
                         .HasForeignKey("UserId")
@@ -352,6 +363,8 @@ namespace BikePartsTracker.Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Bike");
+
+                    b.Navigation("ChainCycle");
 
                     b.Navigation("User");
                 });
@@ -421,6 +434,11 @@ namespace BikePartsTracker.Backend.Migrations
             modelBuilder.Entity("BikePartsTracker.Models.BikePart", b =>
                 {
                     b.Navigation("UsageHistory");
+                });
+
+            modelBuilder.Entity("BikePartsTracker.Models.ChainCycle", b =>
+                {
+                    b.Navigation("Parts");
                 });
 
             modelBuilder.Entity("BikePartsTracker.Models.ExternalServiceIntegration", b =>

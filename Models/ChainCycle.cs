@@ -18,6 +18,7 @@ namespace BikePartsTracker.Models
 
         /// <summary>
         /// Ordered list of chain part IDs forming the rotation.
+        /// Null entries represent empty slots. Array length is the cycle size.
         /// Serialized to/from ChainsJson for persistence.
         /// </summary>
         [NotMapped]
@@ -49,7 +50,7 @@ namespace BikePartsTracker.Models
         public string ChainsJson { get; set; } = "[]";
 
         /// <summary>
-        /// ID of the chain part currently installed.
+        /// ID of the chain part currently installed on the bike from this cycle.
         /// </summary>
         public Guid? ActiveChainId { get; set; }
 
@@ -57,11 +58,6 @@ namespace BikePartsTracker.Models
         /// Distance in km between chain swaps within this cycle.
         /// </summary>
         public double? IntervalKm { get; set; }
-
-        /// <summary>
-        /// Total number of chains in the rotation.
-        /// </summary>
-        public int? CycleLength { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

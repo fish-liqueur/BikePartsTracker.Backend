@@ -24,6 +24,12 @@ namespace BikePartsTracker.Data
                 .WithOne(b => b.User)
                 .HasForeignKey(b => b.UserId);
 
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.Parts)
+                .WithOne(p => p.User)
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             modelBuilder.Entity<Bike>()
                 .HasMany(b => b.Parts)
                 .WithOne(p => p.Bike)

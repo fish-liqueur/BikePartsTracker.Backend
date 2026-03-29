@@ -25,8 +25,6 @@ namespace BikePartsTracker.Controllers
         {
             return await _context.Bikes
                 .Include(b => b.User)
-                .Include(b => b.Parts)
-                .Include(b => b.ChainCycles)
                 .ToListAsync();
         }
 
@@ -36,8 +34,6 @@ namespace BikePartsTracker.Controllers
         {
             var bike = await _context.Bikes
                 .Include(b => b.User)
-                .Include(b => b.Parts)
-                .Include(b => b.ChainCycles)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (bike == null)
@@ -82,23 +78,6 @@ namespace BikePartsTracker.Controllers
                 UpdatedAt = createBikeDto.UpdatedAt ?? now
             };
 
-            if (createBikeDto.ChainCycles != null)
-            {
-                foreach (var cycleDto in createBikeDto.ChainCycles)
-                {
-                    bike.ChainCycles.Add(new ChainCycle
-                    {
-                        Id = Guid.NewGuid(),
-                        Chains = cycleDto.Chains ?? new List<Guid?>(),
-                        ActiveChainId = cycleDto.ActiveChainId,
-                        IntervalKm = cycleDto.IntervalKm,
-                        CycleLength = cycleDto.CycleLength,
-                        CreatedAt = now,
-                        UpdatedAt = now
-                    });
-                }
-            }
-
             _context.Bikes.Add(bike);
             await _context.SaveChangesAsync();
 
@@ -123,7 +102,6 @@ namespace BikePartsTracker.Controllers
 
             var bike = await _context.Bikes
                 .Include(b => b.User)
-                .Include(b => b.ChainCycles)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (bike == null)
@@ -157,34 +135,6 @@ namespace BikePartsTracker.Controllers
             if (updateBikeDto.IsActive.HasValue)
                 bike.IsActive = updateBikeDto.IsActive.Value;
 
-            // null = no change; empty array = clear all; non-empty array = full replacement
-            if (updateBikeDto.ChainCycles != null)
-            {
-                // Snapshot before touching the collection to avoid EF relationship-fixup
-                // processing the same deletion twice when the navigation is also modified.
-                var cyclesToDelete = bike.ChainCycles.ToList();
-                foreach (var cycle in cyclesToDelete)
-                    _context.Entry(cycle).State = EntityState.Deleted;
-
-                var now = DateTime.UtcNow;
-                foreach (var cycleDto in updateBikeDto.ChainCycles)
-                {
-                    // Always generate a fresh ID to avoid EF converting a Deleted+Added
-                    // pair with the same PK into an UPDATE that finds 0 rows.
-                    _context.ChainCycles.Add(new ChainCycle
-                    {
-                        Id = Guid.NewGuid(),
-                        BikeId = id,
-                        Chains = cycleDto.Chains ?? new List<Guid?>(),
-                        ActiveChainId = cycleDto.ActiveChainId,
-                        IntervalKm = cycleDto.IntervalKm,
-                        CycleLength = cycleDto.CycleLength,
-                        CreatedAt = now,
-                        UpdatedAt = now
-                    });
-                }
-            }
-
             bike.UpdatedAt = DateTime.UtcNow;
 
             try
@@ -202,9 +152,6 @@ namespace BikePartsTracker.Controllers
                     throw;
                 }
             }
-
-            await _context.Entry(bike).Collection(b => b.Parts).LoadAsync();
-            await _context.Entry(bike).Collection(b => b.ChainCycles).LoadAsync();
 
             return Ok(bike);
         }

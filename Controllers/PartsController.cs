@@ -24,21 +24,14 @@ namespace BikePartsTracker.Controllers
         [Authorize]
         public async Task<ActionResult<IEnumerable<BikePart>>> GetParts()
         {
-            // Get current user from JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
 
-            // Get all bikes for the user, then get all parts for those bikes
-            var userBikeIds = await _context.Bikes
-                .Where(b => b.UserId == userId)
-                .Select(b => b.Id)
-                .ToListAsync();
-
             var parts = await _context.BikeParts
-                .Where(p => p.BikeId.HasValue && userBikeIds.Contains(p.BikeId.Value))
+                .Where(p => p.UserId == userId)
                 .Include(p => p.Bike)
                 .ToListAsync();
 
@@ -95,16 +88,9 @@ namespace BikePartsTracker.Controllers
                 return NotFound();
             }
 
-            // Verify the part belongs to a bike owned by the current user
-            if (part.BikeId.HasValue)
+            if (part.UserId != userId)
             {
-                var bike = await _context.Bikes
-                    .FirstOrDefaultAsync(b => b.Id == part.BikeId.Value && b.UserId == userId);
-
-                if (bike == null)
-                {
-                    return Forbid();
-                }
+                return Forbid();
             }
 
             return part;
@@ -144,6 +130,7 @@ namespace BikePartsTracker.Controllers
             var part = new BikePart
             {
                 Id = Guid.NewGuid(),
+                UserId = userId,
                 BikeId = createPartDto.BikeId,
                 Name = createPartDto.Name,
                 Description = createPartDto.Description,
@@ -176,7 +163,7 @@ namespace BikePartsTracker.Controllers
         // PUT: api/Parts/5
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<ActionResult<BikePart>> PutPart(Guid id, [FromBody] UpdatePartDto updatePartDto)
+        public async Task<ActionResult<object>> PutPart(Guid id, [FromBody] UpdatePartDto updatePartDto)
         {
             if (!ModelState.IsValid)
             {
@@ -200,40 +187,44 @@ namespace BikePartsTracker.Controllers
                 return NotFound();
             }
 
-            // Verify the part belongs to a bike owned by the current user
-            if (part.BikeId.HasValue)
+            if (part.UserId != userId)
             {
-                var bike = await _context.Bikes
-                    .FirstOrDefaultAsync(b => b.Id == part.BikeId.Value && b.UserId == userId);
+                return Forbid();
+            }
 
-                if (bike == null)
+            var affectedChainCycles = new List<ChainCycleResponseDto>();
+            var oldBikeId = part.BikeId;
+
+            // Handle BikeId: Guid.Empty means "clear", null means "don't change"
+            if (updatePartDto.BikeId.HasValue)
+            {
+                if (updatePartDto.BikeId.Value == Guid.Empty)
                 {
-                    return Forbid();
+                    part.BikeId = null;
+                }
+                else if (updatePartDto.BikeId.Value != part.BikeId)
+                {
+                    var newBike = await _context.Bikes
+                        .FirstOrDefaultAsync(b => b.Id == updatePartDto.BikeId.Value && b.UserId == userId);
+
+                    if (newBike == null)
+                        return BadRequest("Bike not found or does not belong to the current user");
+
+                    part.BikeId = updatePartDto.BikeId.Value;
                 }
             }
 
-            // If BikeId is being updated, verify the new bike belongs to the user
-            if (updatePartDto.BikeId.HasValue && updatePartDto.BikeId != part.BikeId)
+            // Cascade: if bike changed or cleared, remove part from any chain cycles on the old bike
+            if (oldBikeId.HasValue && part.BikeId != oldBikeId)
             {
-                var newBike = await _context.Bikes
-                    .FirstOrDefaultAsync(b => b.Id == updatePartDto.BikeId.Value && b.UserId == userId);
-
-                if (newBike == null)
-                {
-                    return BadRequest("Bike not found or does not belong to the current user");
-                }
+                affectedChainCycles = await RemovePartFromCycles(part.Id, oldBikeId.Value);
             }
 
-            // Update only the fields provided in the DTO
             if (updatePartDto.Name != null)
-            {
                 part.Name = updatePartDto.Name;
-            }
 
             if (updatePartDto.Description != null)
-            {
                 part.Description = updatePartDto.Description;
-            }
 
             if (updatePartDto.PartType.HasValue)
             {
@@ -242,39 +233,22 @@ namespace BikePartsTracker.Controllers
             }
 
             if (updatePartDto.Brand != null)
-            {
                 part.Brand = updatePartDto.Brand;
-            }
 
             if (updatePartDto.Model != null)
-            {
                 part.Model = updatePartDto.Model;
-            }
 
             if (updatePartDto.InstallationDate.HasValue)
-            {
                 part.InstallationDate = updatePartDto.InstallationDate.Value;
-            }
 
             if (updatePartDto.MileageAtInstallation.HasValue)
-            {
                 part.MileageAtInstallation = updatePartDto.MileageAtInstallation.Value;
-            }
-
-            if (updatePartDto.BikeId.HasValue)
-            {
-                part.BikeId = updatePartDto.BikeId.Value;
-            }
 
             if (updatePartDto.ScheduleType.HasValue)
-            {
                 part.ScheduleType = updatePartDto.ScheduleType.Value;
-            }
 
             if (updatePartDto.ScheduleValue.HasValue)
-            {
                 part.ScheduleValue = updatePartDto.ScheduleValue.Value;
-            }
 
             part.UpdatedAt = DateTime.UtcNow;
 
@@ -299,7 +273,7 @@ namespace BikePartsTracker.Controllers
                 .Include(p => p.Bike)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
-            return updatedPart!;
+            return Ok(new { part = updatedPart, affectedChainCycles });
         }
 
         // DELETE: api/Parts/5
@@ -323,22 +297,22 @@ namespace BikePartsTracker.Controllers
                 return NotFound();
             }
 
-            // Verify the part belongs to a bike owned by the current user
+            if (part.UserId != userId)
+            {
+                return Forbid();
+            }
+
+            var affectedChainCycles = new List<ChainCycleResponseDto>();
+
             if (part.BikeId.HasValue)
             {
-                var bike = await _context.Bikes
-                    .FirstOrDefaultAsync(b => b.Id == part.BikeId.Value && b.UserId == userId);
-
-                if (bike == null)
-                {
-                    return Forbid();
-                }
+                affectedChainCycles = await RemovePartFromCycles(part.Id, part.BikeId.Value);
             }
 
             _context.BikeParts.Remove(part);
             await _context.SaveChangesAsync();
 
-            return Ok(new { success = true });
+            return Ok(new { success = true, affectedChainCycles });
         }
 
         // GET: api/Parts/search?q=query
@@ -358,15 +332,9 @@ namespace BikePartsTracker.Controllers
                 return Unauthorized();
             }
 
-            // Get all bikes for the user first
-            var userBikeIds = await _context.Bikes
-                .Where(b => b.UserId == userId)
-                .Select(b => b.Id)
-                .ToListAsync();
-
             var searchTerm = q.ToLower();
             var parts = await _context.BikeParts
-                .Where(p => p.BikeId.HasValue && userBikeIds.Contains(p.BikeId.Value) &&
+                .Where(p => p.UserId == userId &&
                     (p.Name.ToLower().Contains(searchTerm) ||
                      (p.Brand != null && p.Brand.ToLower().Contains(searchTerm)) ||
                      (p.Model != null && p.Model.ToLower().Contains(searchTerm)) ||
@@ -400,18 +368,58 @@ namespace BikePartsTracker.Controllers
                 return BadRequest($"Invalid part type: {type}");
             }
 
-            // Get all bikes for the user first
-            var userBikeIds = await _context.Bikes
-                .Where(b => b.UserId == userId)
-                .Select(b => b.Id)
-                .ToListAsync();
-
             var parts = await _context.BikeParts
-                .Where(p => p.BikeId.HasValue && userBikeIds.Contains(p.BikeId.Value) && p.PartType == partType)
+                .Where(p => p.UserId == userId && p.PartType == partType)
                 .Include(p => p.Bike)
                 .ToListAsync();
 
             return parts;
+        }
+
+        /// <summary>
+        /// Removes a part ID from the Chains array of all cycles on a given bike.
+        /// Replaces the part ID with null (preserving slot) and clears ActiveChainId if needed.
+        /// Returns the list of cycles that were modified.
+        /// </summary>
+        private async Task<List<ChainCycleResponseDto>> RemovePartFromCycles(Guid partId, Guid bikeId)
+        {
+            var affected = new List<ChainCycleResponseDto>();
+
+            var cycles = await _context.ChainCycles
+                .Where(c => c.BikeId == bikeId)
+                .ToListAsync();
+
+            var now = DateTime.UtcNow;
+
+            foreach (var cycle in cycles)
+            {
+                var chains = cycle.Chains;
+                bool modified = false;
+
+                for (int i = 0; i < chains.Count; i++)
+                {
+                    if (chains[i] == partId)
+                    {
+                        chains[i] = null;
+                        modified = true;
+                    }
+                }
+
+                if (cycle.ActiveChainId == partId)
+                {
+                    cycle.ActiveChainId = null;
+                    modified = true;
+                }
+
+                if (modified)
+                {
+                    cycle.Chains = chains;
+                    cycle.UpdatedAt = now;
+                    affected.Add(ChainCyclesController.MapToDto(cycle));
+                }
+            }
+
+            return affected;
         }
 
         private bool PartExists(Guid id)

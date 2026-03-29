@@ -21,7 +21,7 @@ namespace BikePartsTracker.Models
         Cassette,
         Chainring,
         BrakePads,
-        Tyres,
+        Tyre,
         Battery,
         BottomBracket,
         Headset,
