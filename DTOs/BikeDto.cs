@@ -28,6 +28,9 @@ namespace BikePartsTracker.DTOs
         public DateTime? InstallationDate { get; set; }
         public double? MileageAtInstallation { get; set; }
         public Guid? BikeId { get; set; }
+
+        public bool IsActive { get; set; } = true;
+
         public List<PartUsageHistoryDto>? UsageHistory { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

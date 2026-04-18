@@ -143,6 +143,7 @@ namespace BikePartsTracker.Controllers
                 HistoryJson = "[]",
                 ScheduleType = PartScheduleType.OneTimeUse,
                 ScheduleValue = 0.0,
+                IsActive = createPartDto.IsActive ?? true,
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -249,6 +250,9 @@ namespace BikePartsTracker.Controllers
 
             if (updatePartDto.ScheduleValue.HasValue)
                 part.ScheduleValue = updatePartDto.ScheduleValue.Value;
+
+            if (updatePartDto.IsActive.HasValue)
+                part.IsActive = updatePartDto.IsActive.Value;
 
             part.UpdatedAt = DateTime.UtcNow;
 

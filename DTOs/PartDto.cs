@@ -27,6 +27,8 @@ namespace BikePartsTracker.DTOs
 
         [Required]
         public Guid BikeId { get; set; }
+
+        public bool IsActive { get; set; } = true;
     }
 
     public class CreatePartDto

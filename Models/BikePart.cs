@@ -43,6 +43,11 @@ namespace BikePartsTracker.Models
         public PartScheduleType ScheduleType { get; set; }
         public double ScheduleValue { get; set; } // km or days
 
+        /// <summary>
+        /// Whether the part is active (e.g. still in use / shown by default).
+        /// </summary>
+        public bool IsActive { get; set; } = true;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
