@@ -37,11 +37,5 @@ namespace BikePartsTracker.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<BikePart> Parts { get; set; } = new List<BikePart>();
-
-        /// <summary>
-        /// Chain rotation cycles configured for this bike.
-        /// Empty means no chain cycle is configured.
-        /// </summary>
-        public ICollection<ChainCycle> ChainCycles { get; set; } = new List<ChainCycle>();
     }
 }

@@ -36,9 +36,9 @@ namespace BikePartsTracker.Data
                 .HasForeignKey(p => p.BikeId)
                 .IsRequired(false);
 
-            modelBuilder.Entity<Bike>()
-                .HasMany(b => b.ChainCycles)
-                .WithOne(c => c.Bike)
+            modelBuilder.Entity<ChainCycle>()
+                .HasOne(c => c.Bike)
+                .WithMany()
                 .HasForeignKey(c => c.BikeId)
                 .OnDelete(DeleteBehavior.Cascade);
 
