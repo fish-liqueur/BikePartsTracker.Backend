@@ -12,6 +12,12 @@ namespace BikePartsTracker.Services
         Task<bool> RevokeTokenAsync(string accessToken);
         Task<StravaTokenResponse?> RefreshTokenAsync(string refreshToken);
         Task<StravaAthleteDto?> GetAthleteAsync(string accessToken);
+        Task<List<StravaActivityDto>> GetActivitiesAsync(
+            string accessToken,
+            long? before = null,
+            long? after = null,
+            int page = 1,
+            int perPage = 30);
     }
 
     public class StravaService : IStravaService
@@ -205,6 +211,49 @@ namespace BikePartsTracker.Services
             {
                 throw new InvalidOperationException($"Failed to get Strava athlete: {ex.Message}", ex);
             }
+        }
+
+        public async Task<List<StravaActivityDto>> GetActivitiesAsync(
+            string accessToken,
+            long? before = null,
+            long? after = null,
+            int page = 1,
+            int perPage = 30)
+        {
+            var queryParts = new List<string>
+            {
+                $"page={page}",
+                $"per_page={perPage}"
+            };
+
+            if (before.HasValue)
+            {
+                queryParts.Add($"before={before.Value}");
+            }
+
+            if (after.HasValue)
+            {
+                queryParts.Add($"after={after.Value}");
+            }
+
+            var url = $"https://www.strava.com/api/v3/athlete/activities?{string.Join("&", queryParts)}";
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Strava API error: {response.StatusCode} - {errorContent}");
+            }
+
+            var jsonContent = await response.Content.ReadAsStringAsync();
+            var activities = JsonSerializer.Deserialize<List<StravaActivityDto>>(jsonContent, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            return activities ?? new List<StravaActivityDto>();
         }
     }
 

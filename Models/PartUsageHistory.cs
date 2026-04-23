@@ -12,10 +12,31 @@ namespace BikePartsTracker.Models
         public Guid BikePartId { get; set; }
         public required BikePart BikePart { get; set; }
 
-        public string ActionType { get; set; } = string.Empty; // Installed, Removed, Maintained
-        public DateTime Date { get; set; }
+        [ForeignKey(nameof(Bike))]
+        public Guid? BikeId { get; set; }
+        public Bike? Bike { get; set; }
 
-        public double OdometerAtAction { get; set; } // km at the time
+        [ForeignKey(nameof(SourceUsagePeriod))]
+        public Guid? SourceUsagePeriodId { get; set; }
+        public PartUsageHistory? SourceUsagePeriod { get; set; }
+        public ICollection<PartUsageHistory> ShadowChildren { get; set; } = new List<PartUsageHistory>();
+
+        [ForeignKey(nameof(Work))]
+        public Guid? WorkId { get; set; }
+        public Work? Work { get; set; }
+
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+
+        /// <summary>
+        /// Cached interval distance in meters.
+        /// </summary>
+        public double Distance { get; set; }
+
+        public bool IsShadow { get; set; }
         public string? Notes { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }

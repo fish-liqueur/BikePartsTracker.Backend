@@ -37,5 +37,6 @@ namespace BikePartsTracker.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<BikePart> Parts { get; set; } = new List<BikePart>();
+        public ICollection<Ride> Rides { get; set; } = new List<Ride>();
     }
 }

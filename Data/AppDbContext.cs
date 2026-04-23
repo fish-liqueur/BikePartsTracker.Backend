@@ -12,6 +12,8 @@ namespace BikePartsTracker.Data
         public DbSet<Bike> Bikes { get; set; }
         public DbSet<ChainCycle> ChainCycles { get; set; }
         public DbSet<BikePart> BikeParts { get; set; }
+        public DbSet<Ride> Rides { get; set; }
+        public DbSet<Work> Works { get; set; }
         public DbSet<PartUsageHistory> PartUsageHistories { get; set; }
         public DbSet<ExternalServiceIntegration> ExternalServiceIntegrations { get; set; }
         public DbSet<StravaAthlete> StravaAthletes { get; set; }
@@ -36,6 +38,25 @@ namespace BikePartsTracker.Data
                 .HasForeignKey(p => p.BikeId)
                 .IsRequired(false);
 
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.Rides)
+                .WithOne(r => r.User)
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.Works)
+                .WithOne(w => w.User)
+                .HasForeignKey(w => w.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Bike>()
+                .HasMany(b => b.Rides)
+                .WithOne(r => r.Bike)
+                .HasForeignKey(r => r.BikeId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<ChainCycle>()
                 .HasOne(c => c.Bike)
                 .WithMany()
@@ -45,7 +66,26 @@ namespace BikePartsTracker.Data
             modelBuilder.Entity<BikePart>()
                 .HasMany(p => p.UsageHistory)
                 .WithOne(h => h.BikePart)
-                .HasForeignKey(h => h.BikePartId);
+                .HasForeignKey(h => h.BikePartId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<PartUsageHistory>()
+                .HasOne(h => h.Bike)
+                .WithMany()
+                .HasForeignKey(h => h.BikeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<PartUsageHistory>()
+                .HasOne(h => h.SourceUsagePeriod)
+                .WithMany(h => h.ShadowChildren)
+                .HasForeignKey(h => h.SourceUsagePeriodId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<PartUsageHistory>()
+                .HasOne(h => h.Work)
+                .WithMany(w => w.ShadowUsagePeriods)
+                .HasForeignKey(h => h.WorkId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // External service integration relationships
             modelBuilder.Entity<User>()
@@ -64,6 +104,22 @@ namespace BikePartsTracker.Data
             modelBuilder.Entity<ExternalServiceIntegration>()
                 .HasIndex(e => new { e.UserId, e.ServiceType })
                 .IsUnique();
+
+            modelBuilder.Entity<Ride>()
+                .HasIndex(r => new { r.UserId, r.StravaActivityId })
+                .IsUnique();
+
+            modelBuilder.Entity<Ride>()
+                .HasIndex(r => new { r.UserId, r.StartDateLocal });
+
+            modelBuilder.Entity<PartUsageHistory>()
+                .HasIndex(h => new { h.BikePartId, h.StartDate, h.EndDate });
+
+            modelBuilder.Entity<PartUsageHistory>()
+                .HasIndex(h => h.WorkId);
+
+            modelBuilder.Entity<Work>()
+                .HasIndex(w => new { w.UserId, w.ParentType, w.ParentId, w.IsActive });
 
             // User settings one-to-one relationship
             modelBuilder.Entity<UserSettings>()

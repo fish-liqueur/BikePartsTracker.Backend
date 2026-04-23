@@ -19,12 +19,18 @@ namespace BikePartsTracker.Controllers
     public class StravaController : ControllerBase
     {
         private readonly IStravaService _stravaService;
+        private readonly IStravaIntegrationService _stravaIntegrationService;
         private readonly AppDbContext _context;
         private readonly IConfiguration _configuration;
 
-        public StravaController(IStravaService stravaService, AppDbContext context, IConfiguration configuration)
+        public StravaController(
+            IStravaService stravaService,
+            IStravaIntegrationService stravaIntegrationService,
+            AppDbContext context,
+            IConfiguration configuration)
         {
             _stravaService = stravaService;
+            _stravaIntegrationService = stravaIntegrationService;
             _context = context;
             _configuration = configuration;
         }
@@ -259,7 +265,7 @@ namespace BikePartsTracker.Controllers
                 return StatusCode(500, new { message = "Strava ClientId is not configured" });
             }
 
-            var scope = "profile:read_all"; 
+            var scope = "profile:read_all,activity:read_all";
             var authorizeUrl = $"https://www.strava.com/oauth/authorize?client_id={Uri.EscapeDataString(clientId)}&response_type=code&redirect_uri={Uri.EscapeDataString(redirectUri)}&scope={Uri.EscapeDataString(scope)}";
             
             return Ok(new { authorizeUrl });
@@ -286,9 +292,7 @@ namespace BikePartsTracker.Controllers
                 }
 
                 // Find Strava integration
-                var integration = await _context.ExternalServiceIntegrations
-                    .Include(i => i.StravaAthlete)
-                    .FirstOrDefaultAsync(i => i.UserId == userId && i.ServiceType == ExternalServiceType.Strava);
+                var integration = await _stravaIntegrationService.GetUserStravaIntegrationAsync(userId);
 
                 if (integration != null)
                 {
@@ -364,7 +368,7 @@ namespace BikePartsTracker.Controllers
                 }
 
                 // Ensure token is valid (refresh if needed)
-                var accessToken = await EnsureTokenValidAsync(integration);
+                var accessToken = await _stravaIntegrationService.EnsureValidAccessTokenAsync(integration);
                 Console.WriteLine("GetAthlete AccessToken: {0}", accessToken);
                 if (string.IsNullOrEmpty(accessToken))
                 {
@@ -414,63 +418,6 @@ namespace BikePartsTracker.Controllers
             }
         }
 
-        /// <summary>
-        /// Ensures the Strava access token is valid, refreshing it if necessary
-        /// </summary>
-        /// <param name="integration">The Strava integration</param>
-        /// <returns>Valid access token</returns>
-        private async Task<string?> EnsureTokenValidAsync(ExternalServiceIntegration integration)
-        {
-            // Check if access token exists
-            if (string.IsNullOrEmpty(integration.AccessToken))
-            {
-                // No access token stored - cannot proceed
-                return null;
-            }
-
-            // Check if token is expired or will expire within 5 minutes
-            var tokenExpiryTime = integration.TokenExpiry;
-            var bufferTime = TimeSpan.FromMinutes(5);
-            
-            if (DateTime.UtcNow.Add(bufferTime) >= tokenExpiryTime)
-            {
-                // Token is expired or about to expire, refresh it
-                if (string.IsNullOrEmpty(integration.RefreshToken))
-                {
-                    // No refresh token available - cannot refresh
-                    return null;
-                }
-
-                try
-                {
-                    var tokenResponse = await _stravaService.RefreshTokenAsync(integration.RefreshToken);
-                    if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
-                    {
-                        // Refresh failed or returned invalid response
-                        return null;
-                    }
-
-                    // Update integration with new tokens
-                    integration.AccessToken = tokenResponse.AccessToken;
-                    integration.RefreshToken = tokenResponse.RefreshToken; // Important: refresh token also changes!
-                    integration.TokenExpiry = DateTimeOffset.FromUnixTimeSeconds(tokenResponse.ExpiresAt).UtcDateTime;
-                    integration.UpdatedAt = DateTime.UtcNow;
-
-                    await _context.SaveChangesAsync();
-
-                    return tokenResponse.AccessToken;
-                }
-                catch (Exception ex)
-                {
-                    // If refresh fails, try using the existing token anyway (if it exists)
-                    // Log the exception for debugging
-                    // Note: In production, you might want to log this to a logging service
-                    return string.IsNullOrEmpty(integration.AccessToken) ? null : integration.AccessToken;
-                }
-            }
-
-            return integration.AccessToken;
-        }
     }
 }
 

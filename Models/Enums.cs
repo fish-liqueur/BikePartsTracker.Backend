@@ -43,4 +43,24 @@ namespace BikePartsTracker.Models
         Rat,
         Other
     }
+
+    public enum WorkType
+    {
+        OneTime = 1,
+        Repeating = 2,
+        Cyclic = 3
+    }
+
+    public enum WorkTriggerType
+    {
+        Distance = 1,
+        Time = 2
+    }
+
+    public enum WorkParentType
+    {
+        Part = 1,
+        Bike = 2,
+        ChainCycle = 3
+    }
 }
