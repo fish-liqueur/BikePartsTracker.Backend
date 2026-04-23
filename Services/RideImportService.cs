@@ -76,8 +76,8 @@ namespace BikePartsTracker.Services
             }
 
             var existingRides = await _context.Rides
-                .Where(r => r.UserId == userId)
-                .ToDictionaryAsync(r => r.StravaActivityId, r => r);
+                .Where(r => r.UserId == userId && r.StravaActivityId != null)
+                .ToDictionaryAsync(r => r.StravaActivityId!.Value, r => r);
 
             var bikes = await _context.Bikes
                 .Where(b => b.UserId == userId && b.StravaBikeId != null)

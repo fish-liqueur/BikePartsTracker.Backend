@@ -9,9 +9,9 @@ namespace BikePartsTracker.Models
         public Guid Id { get; set; }
 
         /// <summary>
-        /// Strava activity identifier.
+        /// Strava activity id when the ride was imported from Strava; null for manual rides. Entity key is <see cref="Id"/>.
         /// </summary>
-        public long StravaActivityId { get; set; }
+        public long? StravaActivityId { get; set; }
 
         [ForeignKey(nameof(User))]
         public Guid UserId { get; set; }

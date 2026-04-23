@@ -107,7 +107,8 @@ namespace BikePartsTracker.Data
 
             modelBuilder.Entity<Ride>()
                 .HasIndex(r => new { r.UserId, r.StravaActivityId })
-                .IsUnique();
+                .IsUnique()
+                .HasFilter("\"StravaActivityId\" IS NOT NULL");
 
             modelBuilder.Entity<Ride>()
                 .HasIndex(r => new { r.UserId, r.StartDateLocal });
