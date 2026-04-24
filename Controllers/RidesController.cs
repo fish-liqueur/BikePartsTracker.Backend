@@ -131,7 +131,6 @@ namespace BikePartsTracker.Controllers
                 }
             }
 
-            var userDistance = dto.UserDistance ?? dto.Distance;
             var type = string.IsNullOrWhiteSpace(dto.Type) ? "Ride" : dto.Type;
             var now = DateTime.UtcNow;
 
@@ -145,8 +144,8 @@ namespace BikePartsTracker.Controllers
                 Description = dto.Description,
                 Type = type,
                 GearId = dto.GearId,
+                RecordedDistance = 0,
                 Distance = dto.Distance,
-                UserDistance = userDistance,
                 StartDateLocal = dto.StartDateLocal,
                 IsActive = dto.IsActive,
                 CreatedAt = now,
@@ -220,11 +219,6 @@ namespace BikePartsTracker.Controllers
                 ride.Distance = dto.Distance.Value;
             }
 
-            if (dto.UserDistance.HasValue)
-            {
-                ride.UserDistance = dto.UserDistance.Value;
-            }
-
             if (dto.StartDateLocal.HasValue)
             {
                 ride.StartDateLocal = dto.StartDateLocal.Value;
@@ -238,7 +232,6 @@ namespace BikePartsTracker.Controllers
             var startMin = oldStart <= ride.StartDateLocal ? oldStart : ride.StartDateLocal;
             var startMax = oldStart >= ride.StartDateLocal ? oldStart : ride.StartDateLocal;
             var needsRecalc = dto.Distance.HasValue
-                || dto.UserDistance.HasValue
                 || dto.StartDateLocal.HasValue
                 || dto.IsActive.HasValue
                 || dto.BikeId is not null;
@@ -264,7 +257,6 @@ namespace BikePartsTracker.Controllers
             Type = r.Type,
             GearId = r.GearId,
             Distance = r.Distance,
-            UserDistance = r.UserDistance,
             IsActive = r.IsActive,
             StartDateLocal = r.StartDateLocal
         };

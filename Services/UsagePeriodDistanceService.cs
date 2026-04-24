@@ -51,7 +51,7 @@ namespace BikePartsTracker.Services
                             r.BikeId == period.BikeId &&
                             r.StartDateLocal >= period.StartDate &&
                             r.StartDateLocal <= periodEnd)
-                .SumAsync(r => (double?)r.UserDistance) ?? 0.0;
+                .SumAsync(r => (double?)r.Distance) ?? 0.0;
 
             period.Distance = distance;
             period.UpdatedAt = DateTime.UtcNow;

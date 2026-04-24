@@ -33,7 +33,7 @@ namespace BikePartsTracker.Services
                                 r.IsActive &&
                                 r.BikeId == work.ParentId &&
                                 r.StartDateLocal >= work.StartDate)
-                    .SumAsync(r => (double?)r.UserDistance) ?? 0.0,
+                    .SumAsync(r => (double?)r.Distance) ?? 0.0,
 
                 WorkParentType.Part => await _context.PartUsageHistories
                     .Include(h => h.BikePart)

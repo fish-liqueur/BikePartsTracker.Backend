@@ -27,14 +27,16 @@ namespace BikePartsTracker.Models
         public string? GearId { get; set; }
 
         /// <summary>
-        /// Distance from Strava in meters.
+        /// Raw distance from an external source (e.g., Strava) in meters.
         /// </summary>
-        public double Distance { get; set; }
+        [Column("Distance")]
+        public double RecordedDistance { get; set; }
 
         /// <summary>
-        /// User-adjusted distance in meters.
+        /// Business distance in meters used by application calculations.
         /// </summary>
-        public double UserDistance { get; set; }
+        [Column("UserDistance")]
+        public double Distance { get; set; }
 
         public DateTime StartDateLocal { get; set; }
         public bool IsActive { get; set; } = true;

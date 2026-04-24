@@ -105,8 +105,8 @@ namespace BikePartsTracker.Services
                         Description = activity.Description,
                         Type = activity.Type,
                         GearId = activity.GearId,
+                        RecordedDistance = activity.Distance,
                         Distance = activity.Distance,
-                        UserDistance = activity.Distance,
                         StartDateLocal = activity.StartDateLocal,
                         IsActive = true,
                         CreatedAt = now,
@@ -118,30 +118,30 @@ namespace BikePartsTracker.Services
                     continue;
                 }
 
+                var oldRecordedDistance = existingRide.RecordedDistance;
                 var oldDistance = existingRide.Distance;
-                var oldUserDistance = existingRide.UserDistance;
 
                 existingRide.Name = activity.Name;
                 existingRide.Description = activity.Description;
                 existingRide.Type = activity.Type;
                 existingRide.GearId = activity.GearId;
                 existingRide.BikeId = mappedBikeId;
-                existingRide.Distance = activity.Distance;
+                existingRide.RecordedDistance = activity.Distance;
                 existingRide.StartDateLocal = activity.StartDateLocal;
                 existingRide.UpdatedAt = now;
 
                 if (activity.Distance == 0)
                 {
-                    existingRide.UserDistance = oldUserDistance;
+                    existingRide.Distance = oldDistance;
                 }
-                else if (oldDistance <= 0)
+                else if (oldRecordedDistance <= 0)
                 {
-                    existingRide.UserDistance = activity.Distance;
+                    existingRide.Distance = activity.Distance;
                 }
                 else
                 {
-                    var ratio = oldUserDistance / oldDistance;
-                    existingRide.UserDistance = activity.Distance * ratio;
+                    var ratio = oldDistance / oldRecordedDistance;
+                    existingRide.Distance = activity.Distance * ratio;
                 }
 
                 updated++;

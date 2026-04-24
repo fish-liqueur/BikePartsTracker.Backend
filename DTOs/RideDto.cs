@@ -12,7 +12,6 @@ namespace BikePartsTracker.DTOs
         public string Type { get; set; } = string.Empty;
         public string? GearId { get; set; }
         public double Distance { get; set; }
-        public double UserDistance { get; set; }
         public bool IsActive { get; set; }
         public DateTime StartDateLocal { get; set; }
     }
@@ -46,13 +45,9 @@ namespace BikePartsTracker.DTOs
 
         public Guid? BikeId { get; set; }
 
-        /// <summary>Distance in meters (source value for manual entry).</summary>
+        /// <summary>Distance in meters used by business calculations.</summary>
         [Range(0, double.MaxValue)]
         public double Distance { get; set; }
-
-        /// <summary>User distance in meters; if omitted, defaults to <see cref="Distance"/>.</summary>
-        [Range(0, double.MaxValue)]
-        public double? UserDistance { get; set; }
 
         [Required]
         public DateTime StartDateLocal { get; set; }
@@ -70,9 +65,6 @@ namespace BikePartsTracker.DTOs
 
         [Range(0, double.MaxValue)]
         public double? Distance { get; set; }
-
-        [Range(0, double.MaxValue)]
-        public double? UserDistance { get; set; }
 
         public DateTime? StartDateLocal { get; set; }
         public bool? IsActive { get; set; }
