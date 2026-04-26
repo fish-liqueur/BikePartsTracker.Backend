@@ -247,6 +247,29 @@ namespace BikePartsTracker.Controllers
             return Ok(MapToDto(ride));
         }
 
+        [HttpDelete("{id:guid}")]
+        public async Task<IActionResult> Delete(Guid id)
+        {
+            if (!User.TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var ride = await _context.Rides.FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
+            if (ride == null)
+            {
+                return NotFound();
+            }
+
+            var startDate = ride.StartDateLocal;
+            _context.Rides.Remove(ride);
+            await _context.SaveChangesAsync();
+
+            await _usagePeriodDistanceService.RecalculateOverlappingPeriodsAsync(userId, startDate, startDate);
+
+            return NoContent();
+        }
+
         private static RideDto MapToDto(Ride r) => new()
         {
             Id = r.Id,
