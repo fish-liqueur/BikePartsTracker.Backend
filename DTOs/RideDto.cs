@@ -12,6 +12,7 @@ namespace BikePartsTracker.DTOs
         public string Type { get; set; } = string.Empty;
         public string? GearId { get; set; }
         public double Distance { get; set; }
+        public double RecordedDistance { get; set; }
         public bool IsActive { get; set; }
         public DateTime StartDateLocal { get; set; }
     }

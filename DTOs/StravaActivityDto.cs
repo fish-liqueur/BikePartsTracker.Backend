@@ -16,7 +16,7 @@ namespace BikePartsTracker.DTOs
         [JsonPropertyName("distance")]
         public double Distance { get; set; }
 
-        [JsonPropertyName("type")]
+        [JsonPropertyName("sport_type")]
         public string Type { get; set; } = string.Empty;
 
         [JsonPropertyName("gear_id")]

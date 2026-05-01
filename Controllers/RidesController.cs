@@ -280,6 +280,7 @@ namespace BikePartsTracker.Controllers
             Type = r.Type,
             GearId = r.GearId,
             Distance = r.Distance,
+            RecordedDistance = r.RecordedDistance,
             IsActive = r.IsActive,
             StartDateLocal = r.StartDateLocal
         };
