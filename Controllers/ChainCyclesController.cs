@@ -5,6 +5,7 @@ using System.Security.Claims;
 using BikePartsTracker.Data;
 using BikePartsTracker.Models;
 using BikePartsTracker.DTOs;
+using BikePartsTracker.Services;
 
 namespace BikePartsTracker.Controllers
 {
@@ -14,10 +15,12 @@ namespace BikePartsTracker.Controllers
     public class ChainCyclesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IPartUsageTrackingService _usageTracking;
 
-        public ChainCyclesController(AppDbContext context)
+        public ChainCyclesController(AppDbContext context, IPartUsageTrackingService usageTracking)
         {
             _context = context;
+            _usageTracking = usageTracking;
         }
 
         // GET: api/ChainCycles?bikeId={bikeId}
@@ -86,6 +89,16 @@ namespace BikePartsTracker.Controllers
             _context.ChainCycles.Add(cycle);
             await _context.SaveChangesAsync();
 
+            if (cycle.ActiveChainId.HasValue)
+            {
+                var activeChain = await _context.BikeParts
+                    .FirstOrDefaultAsync(p => p.Id == cycle.ActiveChainId.Value && p.UserId == userId);
+                if (activeChain != null)
+                {
+                    await _usageTracking.OpenUsagePeriodAsync(activeChain, cycle.BikeId, now);
+                }
+            }
+
             return CreatedAtAction(nameof(GetChainCycle), new { id = cycle.Id }, MapToDto(cycle));
         }
 
@@ -105,6 +118,8 @@ namespace BikePartsTracker.Controllers
             if (cycle == null) return NotFound();
             if (cycle.Bike.UserId != userId) return Forbid();
 
+            var oldActiveChainId = cycle.ActiveChainId;
+
             if (dto.Chains != null)
                 cycle.Chains = dto.Chains;
 
@@ -114,9 +129,28 @@ namespace BikePartsTracker.Controllers
             if (dto.IntervalKm.HasValue)
                 cycle.IntervalKm = dto.IntervalKm.Value;
 
-            cycle.UpdatedAt = DateTime.UtcNow;
+            var now = DateTime.UtcNow;
+            cycle.UpdatedAt = now;
 
             await _context.SaveChangesAsync();
+
+            if (oldActiveChainId != cycle.ActiveChainId)
+            {
+                if (oldActiveChainId.HasValue)
+                {
+                    await _usageTracking.CloseOpenUsagePeriodsAsync(oldActiveChainId.Value, now);
+                }
+
+                if (cycle.ActiveChainId.HasValue)
+                {
+                    var newActiveChain = await _context.BikeParts
+                        .FirstOrDefaultAsync(p => p.Id == cycle.ActiveChainId.Value && p.UserId == userId);
+                    if (newActiveChain != null)
+                    {
+                        await _usageTracking.OpenUsagePeriodAsync(newActiveChain, cycle.BikeId, now);
+                    }
+                }
+            }
 
             return Ok(MapToDto(cycle));
         }
@@ -134,6 +168,11 @@ namespace BikePartsTracker.Controllers
 
             if (cycle == null) return NotFound();
             if (cycle.Bike.UserId != userId) return Forbid();
+
+            if (cycle.ActiveChainId.HasValue)
+            {
+                await _usageTracking.CloseOpenUsagePeriodsAsync(cycle.ActiveChainId.Value, DateTime.UtcNow);
+            }
 
             _context.ChainCycles.Remove(cycle);
             await _context.SaveChangesAsync();

@@ -66,6 +66,8 @@ builder.Services.AddScoped<IStravaIntegrationService, StravaIntegrationService>(
 builder.Services.AddScoped<IUsagePeriodDistanceService, UsagePeriodDistanceService>();
 builder.Services.AddScoped<IWorkEvaluationService, WorkEvaluationService>();
 builder.Services.AddScoped<IWorkShadowPeriodService, WorkShadowPeriodService>();
+builder.Services.AddScoped<IPartUsageTrackingService, PartUsageTrackingService>();
+builder.Services.AddScoped<IRideMutationResolver, RideMutationResolver>();
 builder.Services.AddScoped<IRideImportService, RideImportService>();
 
 // Register EF Core with PostgreSQL

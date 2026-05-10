@@ -17,15 +17,18 @@ namespace BikePartsTracker.Controllers
         private readonly AppDbContext _context;
         private readonly IRideImportService _rideImportService;
         private readonly IUsagePeriodDistanceService _usagePeriodDistanceService;
+        private readonly IRideMutationResolver _mutationResolver;
 
         public RidesController(
             AppDbContext context,
             IRideImportService rideImportService,
-            IUsagePeriodDistanceService usagePeriodDistanceService)
+            IUsagePeriodDistanceService usagePeriodDistanceService,
+            IRideMutationResolver mutationResolver)
         {
             _context = context;
             _rideImportService = rideImportService;
             _usagePeriodDistanceService = usagePeriodDistanceService;
+            _mutationResolver = mutationResolver;
         }
 
         [HttpPost("import/strava")]
@@ -43,7 +46,7 @@ namespace BikePartsTracker.Controllers
 
             try
             {
-                var (inserted, updated) = await _rideImportService.ImportFromStravaAsync(userId, request.StartDate, request.EndDate);
+                var importResult = await _rideImportService.ImportFromStravaAsync(userId, request.StartDate, request.EndDate);
 
                 var ridesInRange = await _context.Rides
                     .Where(r => r.UserId == userId &&
@@ -55,9 +58,10 @@ namespace BikePartsTracker.Controllers
 
                 return Ok(new ImportStravaRidesResponseDto
                 {
-                    Inserted = inserted,
-                    Updated = updated,
-                    Rides = rideDtos
+                    Inserted = importResult.Inserted,
+                    Updated = importResult.Updated,
+                    Rides = rideDtos,
+                    Affected = importResult.Affected
                 });
             }
             catch (InvalidOperationException ex)
@@ -115,7 +119,7 @@ namespace BikePartsTracker.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<RideDto>> Create([FromBody] CreateRideDto dto)
+        public async Task<ActionResult<RideMutationResponseDto>> Create([FromBody] CreateRideDto dto)
         {
             if (!User.TryGetUserId(out var userId))
             {
@@ -155,13 +159,25 @@ namespace BikePartsTracker.Controllers
             _context.Rides.Add(ride);
             await _context.SaveChangesAsync();
 
-            await _usagePeriodDistanceService.RecalculateOverlappingPeriodsAsync(userId, ride.StartDateLocal, ride.StartDateLocal);
+            var affectedPartIds = await _usagePeriodDistanceService.RecalculateOverlappingPeriodsAsync(userId, ride.StartDateLocal, ride.StartDateLocal);
 
-            return CreatedAtAction(nameof(GetRide), new { id = ride.Id }, MapToDto(ride));
+            var affected = await _mutationResolver.BuildAsync(
+                userId,
+                rideIds: new[] { ride.Id },
+                partIds: affectedPartIds,
+                bikeIds: new[] { ride.BikeId });
+
+            var response = new RideMutationResponseDto
+            {
+                Ride = MapToDto(ride),
+                Affected = affected
+            };
+
+            return CreatedAtAction(nameof(GetRide), new { id = ride.Id }, response);
         }
 
         [HttpPut("{id:guid}")]
-        public async Task<ActionResult<RideDto>> Update(Guid id, [FromBody] UpdateRideDto dto)
+        public async Task<ActionResult<RideMutationResponseDto>> Update(Guid id, [FromBody] UpdateRideDto dto)
         {
             if (!User.TryGetUserId(out var userId))
             {
@@ -173,6 +189,8 @@ namespace BikePartsTracker.Controllers
             {
                 return NotFound();
             }
+
+            var oldBikeId = ride.BikeId;
 
             if (dto.BikeId is { } nextBike)
             {
@@ -239,16 +257,27 @@ namespace BikePartsTracker.Controllers
             ride.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
+            IReadOnlyCollection<Guid> affectedPartIds = Array.Empty<Guid>();
             if (needsRecalc)
             {
-                await _usagePeriodDistanceService.RecalculateOverlappingPeriodsAsync(userId, startMin, startMax);
+                affectedPartIds = await _usagePeriodDistanceService.RecalculateOverlappingPeriodsAsync(userId, startMin, startMax);
             }
 
-            return Ok(MapToDto(ride));
+            var affected = await _mutationResolver.BuildAsync(
+                userId,
+                rideIds: new[] { ride.Id },
+                partIds: affectedPartIds,
+                bikeIds: new[] { oldBikeId, ride.BikeId });
+
+            return Ok(new RideMutationResponseDto
+            {
+                Ride = MapToDto(ride),
+                Affected = affected
+            });
         }
 
         [HttpDelete("{id:guid}")]
-        public async Task<IActionResult> Delete(Guid id)
+        public async Task<ActionResult<RideMutationResultDto>> Delete(Guid id)
         {
             if (!User.TryGetUserId(out var userId))
             {
@@ -262,12 +291,21 @@ namespace BikePartsTracker.Controllers
             }
 
             var startDate = ride.StartDateLocal;
+            var bikeId = ride.BikeId;
+            var rideId = ride.Id;
+
             _context.Rides.Remove(ride);
             await _context.SaveChangesAsync();
 
-            await _usagePeriodDistanceService.RecalculateOverlappingPeriodsAsync(userId, startDate, startDate);
+            var affectedPartIds = await _usagePeriodDistanceService.RecalculateOverlappingPeriodsAsync(userId, startDate, startDate);
 
-            return NoContent();
+            var affected = await _mutationResolver.BuildAsync(
+                userId,
+                rideIds: new[] { rideId },
+                partIds: affectedPartIds,
+                bikeIds: new[] { bikeId });
+
+            return Ok(affected);
         }
 
         private static RideDto MapToDto(Ride r) => new()

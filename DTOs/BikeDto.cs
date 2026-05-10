@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using BikePartsTracker.Models;
 
 namespace BikePartsTracker.DTOs
@@ -31,18 +32,44 @@ namespace BikePartsTracker.DTOs
 
         public bool IsActive { get; set; } = true;
 
-        public List<PartUsageHistoryDto>? UsageHistory { get; set; }
+        /// <summary>
+        /// Cumulative distance ridden on this part (sum of non-shadow usage period distances).
+        /// </summary>
+        public double TotalDistance { get; set; }
+
+        /// <summary>
+        /// Number of works for this part whose consumed value has reached or exceeded the trigger.
+        /// </summary>
+        public int PendingWorksCount { get; set; }
+
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
 
-    public class PartUsageHistoryDto
+    /// <summary>
+    /// Request body for the parts batch lookup endpoint. Used by the frontend to flush its
+    /// dirty-set after ride mutations without making one request per part.
+    /// </summary>
+    public class BatchPartsRequestDto
     {
-        public Guid Id { get; set; }
-        public Guid PartId { get; set; }
-        public double Mileage { get; set; }
-        public DateTime Date { get; set; }
-        public string? Notes { get; set; }
-        public DateTime CreatedAt { get; set; }
+        [Required]
+        [MinLength(1)]
+        public List<Guid> PartIds { get; set; } = new();
+
+        /// <summary>
+        /// When true, each entry includes the non-shadow usage history for that part
+        /// (sorted by <c>StartDate</c> ascending).
+        /// </summary>
+        public bool IncludeHistory { get; set; } = false;
+    }
+
+    /// <summary>
+    /// One entry in the parts batch response. <see cref="History"/> is non-null only when the
+    /// caller asked for histories; an empty list means the part has no records yet.
+    /// </summary>
+    public class BatchPartEntryDto
+    {
+        public BikePartDto Part { get; set; } = default!;
+        public List<UsagePeriodDto>? History { get; set; }
     }
 }

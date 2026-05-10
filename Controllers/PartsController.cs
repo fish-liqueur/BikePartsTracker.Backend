@@ -5,6 +5,7 @@ using System.Security.Claims;
 using BikePartsTracker.Data;
 using BikePartsTracker.Models;
 using BikePartsTracker.DTOs;
+using BikePartsTracker.Services;
 
 namespace BikePartsTracker.Controllers
 {
@@ -13,16 +14,23 @@ namespace BikePartsTracker.Controllers
     public class PartsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IPartUsageTrackingService _usageTracking;
+        private readonly IWorkEvaluationService _workEvaluationService;
 
-        public PartsController(AppDbContext context)
+        public PartsController(
+            AppDbContext context,
+            IPartUsageTrackingService usageTracking,
+            IWorkEvaluationService workEvaluationService)
         {
             _context = context;
+            _usageTracking = usageTracking;
+            _workEvaluationService = workEvaluationService;
         }
 
         // GET: api/Parts
         [HttpGet]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<BikePart>>> GetParts()
+        public async Task<ActionResult<IEnumerable<BikePartDto>>> GetParts()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
@@ -32,25 +40,22 @@ namespace BikePartsTracker.Controllers
 
             var parts = await _context.BikeParts
                 .Where(p => p.UserId == userId)
-                .Include(p => p.Bike)
                 .ToListAsync();
 
-            return parts;
+            return Ok(await MapPartsAsync(userId, parts));
         }
 
         // GET: api/Parts/bike/5
         [HttpGet("bike/{bikeId}")]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<BikePart>>> GetPartsByBike(Guid bikeId)
+        public async Task<ActionResult<IEnumerable<BikePartDto>>> GetPartsByBike(Guid bikeId)
         {
-            // Get current user from JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
 
-            // Verify the bike belongs to the current user
             var bike = await _context.Bikes
                 .FirstOrDefaultAsync(b => b.Id == bikeId && b.UserId == userId);
 
@@ -61,27 +66,23 @@ namespace BikePartsTracker.Controllers
 
             var parts = await _context.BikeParts
                 .Where(p => p.BikeId == bikeId)
-                .Include(p => p.Bike)
                 .ToListAsync();
 
-            return parts;
+            return Ok(await MapPartsAsync(userId, parts));
         }
 
         // GET: api/Parts/5
         [HttpGet("{id}")]
         [Authorize]
-        public async Task<ActionResult<BikePart>> GetPart(Guid id)
+        public async Task<ActionResult<BikePartDto>> GetPart(Guid id)
         {
-            // Get current user from JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
 
-            var part = await _context.BikeParts
-                .Include(p => p.Bike)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            var part = await _context.BikeParts.FirstOrDefaultAsync(p => p.Id == id);
 
             if (part == null)
             {
@@ -93,13 +94,92 @@ namespace BikePartsTracker.Controllers
                 return Forbid();
             }
 
-            return part;
+            var dto = await MapPartAsync(userId, part);
+            return Ok(dto);
+        }
+
+        // POST: api/Parts/batch
+        // Batch lookup used by the frontend to flush its dirty-set after a ride mutation.
+        // Returns a map keyed by part id; ids that do not belong to the user are silently dropped.
+        private const int BatchPartsMaxIds = 200;
+
+        [HttpPost("batch")]
+        [Authorize]
+        public async Task<ActionResult<Dictionary<Guid, BatchPartEntryDto>>> BatchParts([FromBody] BatchPartsRequestDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized();
+            }
+
+            if (request.PartIds.Count > BatchPartsMaxIds)
+            {
+                return BadRequest(new { message = $"At most {BatchPartsMaxIds} part ids can be requested per call." });
+            }
+
+            var distinctIds = request.PartIds.Distinct().ToList();
+
+            var ownedParts = await _context.BikeParts
+                .Where(p => distinctIds.Contains(p.Id) && p.UserId == userId)
+                .ToListAsync();
+
+            var partDtos = await MapPartsAsync(userId, ownedParts);
+
+            Dictionary<Guid, List<UsagePeriodDto>> historyByPart;
+            if (request.IncludeHistory && ownedParts.Count > 0)
+            {
+                var ownedIds = ownedParts.Select(p => p.Id).ToList();
+                var rows = await _context.PartUsageHistories
+                    .Where(h => ownedIds.Contains(h.BikePartId) && !h.IsShadow)
+                    .OrderBy(h => h.StartDate)
+                    .Select(h => new UsagePeriodDto
+                    {
+                        Id = h.Id,
+                        BikePartId = h.BikePartId,
+                        BikeId = h.BikeId,
+                        StartDate = h.StartDate,
+                        EndDate = h.EndDate,
+                        Distance = h.Distance,
+                        IsShadow = h.IsShadow,
+                        WorkId = h.WorkId,
+                        SourceUsagePeriodId = h.SourceUsagePeriodId,
+                        Notes = h.Notes
+                    })
+                    .ToListAsync();
+
+                historyByPart = rows
+                    .GroupBy(h => h.BikePartId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+            }
+            else
+            {
+                historyByPart = new Dictionary<Guid, List<UsagePeriodDto>>();
+            }
+
+            var response = new Dictionary<Guid, BatchPartEntryDto>(partDtos.Count);
+            foreach (var dto in partDtos)
+            {
+                var entry = new BatchPartEntryDto { Part = dto };
+                if (request.IncludeHistory)
+                {
+                    entry.History = historyByPart.TryGetValue(dto.Id, out var list) ? list : new List<UsagePeriodDto>();
+                }
+                response[dto.Id] = entry;
+            }
+
+            return Ok(response);
         }
 
         // POST: api/Parts
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult<BikePart>> PostPart([FromBody] CreatePartDto createPartDto)
+        public async Task<ActionResult<BikePartDto>> PostPart([FromBody] CreatePartDto createPartDto)
         {
             Console.WriteLine("PostPart called");
             if (!ModelState.IsValid)
@@ -151,14 +231,15 @@ namespace BikePartsTracker.Controllers
             _context.BikeParts.Add(part);
             await _context.SaveChangesAsync();
 
-            // Load the part with related entities for response
-            var createdPart = await _context.BikeParts
-                .Include(p => p.Bike)
-                .FirstOrDefaultAsync(p => p.Id == part.Id);
+            if (part.BikeId.HasValue)
+            {
+                await _usageTracking.OpenUsagePeriodAsync(part, part.BikeId.Value, part.InstallationDate ?? now);
+            }
 
-            Console.WriteLine("CreatedPart: " + createdPart);
+            var createdPart = await _context.BikeParts.FirstOrDefaultAsync(p => p.Id == part.Id);
+            var dto = await MapPartAsync(userId, createdPart);
 
-            return CreatedAtAction(nameof(GetPart), new { id = part.Id }, createdPart);
+            return CreatedAtAction(nameof(GetPart), new { id = part.Id }, dto);
         }
 
         // PUT: api/Parts/5
@@ -178,10 +259,7 @@ namespace BikePartsTracker.Controllers
                 return Unauthorized();
             }
 
-            // Load the existing part
-            var part = await _context.BikeParts
-                .Include(p => p.Bike)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            var part = await _context.BikeParts.FirstOrDefaultAsync(p => p.Id == id);
 
             if (part == null)
             {
@@ -272,12 +350,26 @@ namespace BikePartsTracker.Controllers
                 }
             }
 
-            // Reload the part with related entities for response
-            var updatedPart = await _context.BikeParts
-                .Include(p => p.Bike)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            if (oldBikeId != part.BikeId)
+            {
+                if (oldBikeId.HasValue)
+                {
+                    await _usageTracking.CloseOpenUsagePeriodsAsync(part.Id, DateTime.UtcNow);
+                }
 
-            return Ok(new { part = updatedPart, affectedChainCycles });
+                if (part.BikeId.HasValue)
+                {
+                    await _usageTracking.OpenUsagePeriodAsync(
+                        part,
+                        part.BikeId.Value,
+                        part.InstallationDate ?? DateTime.UtcNow);
+                }
+            }
+
+            var updatedPart = await _context.BikeParts.FirstOrDefaultAsync(p => p.Id == id);
+            var dto = await MapPartAsync(userId, updatedPart);
+
+            return Ok(new { part = dto, affectedChainCycles });
         }
 
         // DELETE: api/Parts/5
@@ -292,9 +384,7 @@ namespace BikePartsTracker.Controllers
                 return Unauthorized();
             }
 
-            var part = await _context.BikeParts
-                .Include(p => p.Bike)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            var part = await _context.BikeParts.FirstOrDefaultAsync(p => p.Id == id);
 
             if (part == null)
             {
@@ -322,14 +412,13 @@ namespace BikePartsTracker.Controllers
         // GET: api/Parts/search?q=query
         [HttpGet("search")]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<BikePart>>> SearchParts([FromQuery] string q)
+        public async Task<ActionResult<IEnumerable<BikePartDto>>> SearchParts([FromQuery] string q)
         {
             if (string.IsNullOrWhiteSpace(q))
             {
                 return BadRequest("Search query is required");
             }
 
-            // Get current user from JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
@@ -343,30 +432,27 @@ namespace BikePartsTracker.Controllers
                      (p.Brand != null && p.Brand.ToLower().Contains(searchTerm)) ||
                      (p.Model != null && p.Model.ToLower().Contains(searchTerm)) ||
                      (p.Description != null && p.Description.ToLower().Contains(searchTerm))))
-                .Include(p => p.Bike)
                 .ToListAsync();
 
-            return parts;
+            return Ok(await MapPartsAsync(userId, parts));
         }
 
         // GET: api/Parts/type?type=Chain
         [HttpGet("type")]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<BikePart>>> GetPartsByType([FromQuery] string type)
+        public async Task<ActionResult<IEnumerable<BikePartDto>>> GetPartsByType([FromQuery] string type)
         {
             if (string.IsNullOrWhiteSpace(type))
             {
                 return BadRequest("Part type is required");
             }
 
-            // Get current user from JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
 
-            // Try to parse the part type enum
             if (!Enum.TryParse<PartType>(type, ignoreCase: true, out var partType))
             {
                 return BadRequest($"Invalid part type: {type}");
@@ -374,10 +460,9 @@ namespace BikePartsTracker.Controllers
 
             var parts = await _context.BikeParts
                 .Where(p => p.UserId == userId && p.PartType == partType)
-                .Include(p => p.Bike)
                 .ToListAsync();
 
-            return parts;
+            return Ok(await MapPartsAsync(userId, parts));
         }
 
         /// <summary>
@@ -429,6 +514,75 @@ namespace BikePartsTracker.Controllers
         private bool PartExists(Guid id)
         {
             return _context.BikeParts.Any(e => e.Id == id);
+        }
+
+        /// <summary>
+        /// Projects a list of <see cref="BikePart"/> entities to <see cref="BikePartDto"/> with
+        /// computed <c>TotalDistance</c> and <c>PendingWorksCount</c> summaries. Detailed usage
+        /// history is fetched separately via the dedicated usage-periods endpoint.
+        /// </summary>
+        private async Task<List<BikePartDto>> MapPartsAsync(Guid userId, List<BikePart> parts)
+        {
+            if (parts.Count == 0)
+            {
+                return new List<BikePartDto>();
+            }
+
+            var partIds = parts.Select(p => p.Id).ToList();
+
+            var distanceRows = await _context.PartUsageHistories
+                .Where(h => partIds.Contains(h.BikePartId) && !h.IsShadow)
+                .GroupBy(h => h.BikePartId)
+                .Select(g => new { PartId = g.Key, Total = g.Sum(h => h.Distance) })
+                .ToListAsync();
+
+            var distances = distanceRows.ToDictionary(x => x.PartId, x => x.Total);
+
+            var works = await _context.Works
+                .Where(w => w.UserId == userId &&
+                            w.IsActive &&
+                            w.ParentType == WorkParentType.Part &&
+                            partIds.Contains(w.ParentId))
+                .ToListAsync();
+
+            var pending = new Dictionary<Guid, int>();
+            foreach (var work in works)
+            {
+                var consumed = await _workEvaluationService.GetConsumedValueAsync(work);
+                if (consumed >= work.TriggerValue)
+                {
+                    pending[work.ParentId] = pending.GetValueOrDefault(work.ParentId) + 1;
+                }
+            }
+
+            return parts.Select(p => new BikePartDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Description = p.Description,
+                PartType = p.PartType,
+                Brand = p.Brand,
+                Model = p.Model,
+                InstallationDate = p.InstallationDate,
+                MileageAtInstallation = p.MileageAtInstallation,
+                BikeId = p.BikeId,
+                IsActive = p.IsActive,
+                TotalDistance = distances.TryGetValue(p.Id, out var d) ? d : 0,
+                PendingWorksCount = pending.TryGetValue(p.Id, out var c) ? c : 0,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt
+            }).ToList();
+        }
+
+        private async Task<BikePartDto?> MapPartAsync(Guid userId, BikePart? part)
+        {
+            if (part == null)
+            {
+                return null;
+            }
+
+            var list = await MapPartsAsync(userId, new List<BikePart> { part });
+            return list.FirstOrDefault();
         }
     }
 }

@@ -5,9 +5,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BikePartsTracker.Services
 {
+    public class RideImportResult
+    {
+        public int Inserted { get; set; }
+        public int Updated { get; set; }
+        public RideMutationResultDto Affected { get; set; } = new();
+    }
+
     public interface IRideImportService
     {
-        Task<(int inserted, int updated)> ImportFromStravaAsync(Guid userId, DateTime startDate, DateTime endDate);
+        Task<RideImportResult> ImportFromStravaAsync(Guid userId, DateTime startDate, DateTime endDate);
     }
 
     public class RideImportService : IRideImportService
@@ -16,20 +23,23 @@ namespace BikePartsTracker.Services
         private readonly IStravaService _stravaService;
         private readonly IStravaIntegrationService _stravaIntegrationService;
         private readonly IUsagePeriodDistanceService _usagePeriodDistanceService;
+        private readonly IRideMutationResolver _mutationResolver;
 
         public RideImportService(
             AppDbContext context,
             IStravaService stravaService,
             IStravaIntegrationService stravaIntegrationService,
-            IUsagePeriodDistanceService usagePeriodDistanceService)
+            IUsagePeriodDistanceService usagePeriodDistanceService,
+            IRideMutationResolver mutationResolver)
         {
             _context = context;
             _stravaService = stravaService;
             _stravaIntegrationService = stravaIntegrationService;
             _usagePeriodDistanceService = usagePeriodDistanceService;
+            _mutationResolver = mutationResolver;
         }
 
-        public async Task<(int inserted, int updated)> ImportFromStravaAsync(Guid userId, DateTime startDate, DateTime endDate)
+        public async Task<RideImportResult> ImportFromStravaAsync(Guid userId, DateTime startDate, DateTime endDate)
         {
             if (endDate < startDate)
             {
@@ -86,6 +96,8 @@ namespace BikePartsTracker.Services
             var inserted = 0;
             var updated = 0;
             var now = DateTime.UtcNow;
+            var touchedRideIds = new List<Guid>();
+            var touchedBikeIds = new List<Guid?>();
 
             foreach (var activity in importedActivities)
             {
@@ -114,12 +126,15 @@ namespace BikePartsTracker.Services
                     };
 
                     _context.Rides.Add(ride);
+                    touchedRideIds.Add(ride.Id);
+                    touchedBikeIds.Add(mappedBikeId);
                     inserted++;
                     continue;
                 }
 
                 var oldRecordedDistance = existingRide.RecordedDistance;
                 var oldDistance = existingRide.Distance;
+                var oldBikeId = existingRide.BikeId;
 
                 existingRide.Name = activity.Name;
                 existingRide.Description = activity.Description;
@@ -144,13 +159,28 @@ namespace BikePartsTracker.Services
                     existingRide.Distance = activity.Distance * ratio;
                 }
 
+                touchedRideIds.Add(existingRide.Id);
+                touchedBikeIds.Add(oldBikeId);
+                touchedBikeIds.Add(mappedBikeId);
                 updated++;
             }
 
             await _context.SaveChangesAsync();
 
-            await _usagePeriodDistanceService.RecalculateOverlappingPeriodsAsync(userId, startDate, endDate);
-            return (inserted, updated);
+            var affectedPartIds = await _usagePeriodDistanceService.RecalculateOverlappingPeriodsAsync(userId, startDate, endDate);
+
+            var affected = await _mutationResolver.BuildAsync(
+                userId,
+                rideIds: touchedRideIds,
+                partIds: affectedPartIds,
+                bikeIds: touchedBikeIds);
+
+            return new RideImportResult
+            {
+                Inserted = inserted,
+                Updated = updated,
+                Affected = affected
+            };
         }
     }
 }

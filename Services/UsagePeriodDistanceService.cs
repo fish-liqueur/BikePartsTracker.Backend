@@ -7,7 +7,13 @@ namespace BikePartsTracker.Services
     public interface IUsagePeriodDistanceService
     {
         Task RecalculatePeriodDistanceAsync(PartUsageHistory period);
-        Task RecalculateOverlappingPeriodsAsync(Guid userId, DateTime startDate, DateTime endDate);
+
+        /// <summary>
+        /// Recomputes cached <see cref="PartUsageHistory.Distance"/> for every period of the user
+        /// that intersects the given window. Returns the distinct ids of parts whose periods were
+        /// touched, so callers can include them in mutation invalidation responses.
+        /// </summary>
+        Task<IReadOnlyCollection<Guid>> RecalculateOverlappingPeriodsAsync(Guid userId, DateTime startDate, DateTime endDate);
     }
 
     public class UsagePeriodDistanceService : IUsagePeriodDistanceService
@@ -57,7 +63,7 @@ namespace BikePartsTracker.Services
             period.UpdatedAt = DateTime.UtcNow;
         }
 
-        public async Task RecalculateOverlappingPeriodsAsync(Guid userId, DateTime startDate, DateTime endDate)
+        public async Task<IReadOnlyCollection<Guid>> RecalculateOverlappingPeriodsAsync(Guid userId, DateTime startDate, DateTime endDate)
         {
             var overlappingPeriods = await _context.PartUsageHistories
                 .Include(p => p.BikePart)
@@ -72,6 +78,11 @@ namespace BikePartsTracker.Services
             }
 
             await _context.SaveChangesAsync();
+
+            return overlappingPeriods
+                .Select(p => p.BikePartId)
+                .Distinct()
+                .ToList();
         }
     }
 }
