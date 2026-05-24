@@ -28,43 +28,6 @@ namespace BikePartsTracker.Controllers
             _workShadowPeriodService = workShadowPeriodService;
         }
 
-        [HttpGet("part/{bikePartId}")]
-        public async Task<ActionResult<IEnumerable<UsagePeriodDto>>> GetByPart(Guid bikePartId, [FromQuery] bool includeShadow = false)
-        {
-            if (!User.TryGetUserId(out var userId))
-            {
-                return Unauthorized();
-            }
-
-            var query = _context.PartUsageHistories
-                .Include(h => h.BikePart)
-                .Where(h => h.BikePartId == bikePartId && h.BikePart.UserId == userId);
-
-            if (!includeShadow)
-            {
-                query = query.Where(h => !h.IsShadow);
-            }
-
-            var periods = await query
-                .OrderBy(h => h.StartDate)
-                .Select(h => new UsagePeriodDto
-                {
-                    Id = h.Id,
-                    BikePartId = h.BikePartId,
-                    BikeId = h.BikeId,
-                    StartDate = h.StartDate,
-                    EndDate = h.EndDate,
-                    Distance = h.Distance,
-                    IsShadow = h.IsShadow,
-                    WorkId = h.WorkId,
-                    SourceUsagePeriodId = h.SourceUsagePeriodId,
-                    Notes = h.Notes
-                })
-                .ToListAsync();
-
-            return Ok(periods);
-        }
-
         [HttpPost]
         public async Task<ActionResult<UsagePeriodDto>> Create([FromBody] CreateUsagePeriodDto dto)
         {
@@ -113,7 +76,7 @@ namespace BikePartsTracker.Controllers
 
             await _workShadowPeriodService.SyncShadowPeriodsForPartAsync(dto.BikePartId);
 
-            return CreatedAtAction(nameof(GetByPart), new { bikePartId = dto.BikePartId }, MapToDto(period));
+            return CreatedAtAction("GetPartHistory", "Parts", new { id = dto.BikePartId }, MapToDto(period));
         }
 
         [HttpPut("{id}")]

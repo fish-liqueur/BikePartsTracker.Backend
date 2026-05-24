@@ -98,14 +98,17 @@ namespace BikePartsTracker.Controllers
             return Ok(dto);
         }
 
-        // POST: api/Parts/batch
-        // Batch lookup used by the frontend to flush its dirty-set after a ride mutation.
-        // Returns a map keyed by part id; ids that do not belong to the user are silently dropped.
+        // Batch endpoints used by the frontend to flush its dirty-set after a ride mutation.
+        // Each response key is a part id; ids not owned by the user are silently dropped so the
+        // client can detect deletions/foreign rows by their absence.
         private const int BatchPartsMaxIds = 200;
 
+        // POST: api/Parts/batch
+        // Returns part summaries (TotalDistance, PendingWorksCount) only. Usage history lives
+        // behind the dedicated history endpoints below.
         [HttpPost("batch")]
         [Authorize]
-        public async Task<ActionResult<Dictionary<Guid, BatchPartEntryDto>>> BatchParts([FromBody] BatchPartsRequestDto request)
+        public async Task<ActionResult<Dictionary<Guid, BikePartDto>>> BatchParts([FromBody] BatchPartIdsRequestDto request)
         {
             if (!ModelState.IsValid)
             {
@@ -131,46 +134,107 @@ namespace BikePartsTracker.Controllers
 
             var partDtos = await MapPartsAsync(userId, ownedParts);
 
-            Dictionary<Guid, List<UsagePeriodDto>> historyByPart;
-            if (request.IncludeHistory && ownedParts.Count > 0)
-            {
-                var ownedIds = ownedParts.Select(p => p.Id).ToList();
-                var rows = await _context.PartUsageHistories
-                    .Where(h => ownedIds.Contains(h.BikePartId) && !h.IsShadow)
-                    .OrderBy(h => h.StartDate)
-                    .Select(h => new UsagePeriodDto
-                    {
-                        Id = h.Id,
-                        BikePartId = h.BikePartId,
-                        BikeId = h.BikeId,
-                        StartDate = h.StartDate,
-                        EndDate = h.EndDate,
-                        Distance = h.Distance,
-                        IsShadow = h.IsShadow,
-                        WorkId = h.WorkId,
-                        SourceUsagePeriodId = h.SourceUsagePeriodId,
-                        Notes = h.Notes
-                    })
-                    .ToListAsync();
+            return Ok(partDtos.ToDictionary(p => p.Id, p => p));
+        }
 
-                historyByPart = rows
-                    .GroupBy(h => h.BikePartId)
-                    .ToDictionary(g => g.Key, g => g.ToList());
-            }
-            else
+        // GET: api/Parts/{id}/history
+        // Non-shadow usage history for a single part, sorted by StartDate ascending.
+        [HttpGet("{id}/history")]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<UsagePeriodDto>>> GetPartHistory(Guid id)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
-                historyByPart = new Dictionary<Guid, List<UsagePeriodDto>>();
+                return Unauthorized();
             }
 
-            var response = new Dictionary<Guid, BatchPartEntryDto>(partDtos.Count);
-            foreach (var dto in partDtos)
+            var partExists = await _context.BikeParts
+                .AnyAsync(p => p.Id == id && p.UserId == userId);
+
+            if (!partExists)
             {
-                var entry = new BatchPartEntryDto { Part = dto };
-                if (request.IncludeHistory)
+                return NotFound();
+            }
+
+            var history = await _context.PartUsageHistories
+                .Where(h => h.BikePartId == id && !h.IsShadow)
+                .OrderBy(h => h.StartDate)
+                .Select(h => new UsagePeriodDto
                 {
-                    entry.History = historyByPart.TryGetValue(dto.Id, out var list) ? list : new List<UsagePeriodDto>();
-                }
-                response[dto.Id] = entry;
+                    Id = h.Id,
+                    BikePartId = h.BikePartId,
+                    BikeId = h.BikeId,
+                    StartDate = h.StartDate,
+                    EndDate = h.EndDate,
+                    Distance = h.Distance,
+                    IsShadow = h.IsShadow,
+                    WorkId = h.WorkId,
+                    SourceUsagePeriodId = h.SourceUsagePeriodId,
+                    Notes = h.Notes
+                })
+                .ToListAsync();
+
+            return Ok(history);
+        }
+
+        // POST: api/Parts/batch/history
+        // Multi-fetch histories. Known owned parts with no records appear as empty arrays.
+        [HttpPost("batch/history")]
+        [Authorize]
+        public async Task<ActionResult<Dictionary<Guid, List<UsagePeriodDto>>>> BatchPartsHistory([FromBody] BatchPartIdsRequestDto request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized();
+            }
+
+            if (request.PartIds.Count > BatchPartsMaxIds)
+            {
+                return BadRequest(new { message = $"At most {BatchPartsMaxIds} part ids can be requested per call." });
+            }
+
+            var distinctIds = request.PartIds.Distinct().ToList();
+
+            var ownedIds = await _context.BikeParts
+                .Where(p => distinctIds.Contains(p.Id) && p.UserId == userId)
+                .Select(p => p.Id)
+                .ToListAsync();
+
+            var response = ownedIds.ToDictionary(id => id, _ => new List<UsagePeriodDto>());
+
+            if (ownedIds.Count == 0)
+            {
+                return Ok(response);
+            }
+
+            var rows = await _context.PartUsageHistories
+                .Where(h => ownedIds.Contains(h.BikePartId) && !h.IsShadow)
+                .OrderBy(h => h.StartDate)
+                .Select(h => new UsagePeriodDto
+                {
+                    Id = h.Id,
+                    BikePartId = h.BikePartId,
+                    BikeId = h.BikeId,
+                    StartDate = h.StartDate,
+                    EndDate = h.EndDate,
+                    Distance = h.Distance,
+                    IsShadow = h.IsShadow,
+                    WorkId = h.WorkId,
+                    SourceUsagePeriodId = h.SourceUsagePeriodId,
+                    Notes = h.Notes
+                })
+                .ToListAsync();
+
+            foreach (var row in rows)
+            {
+                response[row.BikePartId].Add(row);
             }
 
             return Ok(response);

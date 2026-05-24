@@ -47,29 +47,13 @@ namespace BikePartsTracker.DTOs
     }
 
     /// <summary>
-    /// Request body for the parts batch lookup endpoint. Used by the frontend to flush its
-    /// dirty-set after ride mutations without making one request per part.
+    /// Request body shared by the parts batch lookup endpoints. Carries the set of part ids the
+    /// frontend wants to flush from its dirty-set.
     /// </summary>
-    public class BatchPartsRequestDto
+    public class BatchPartIdsRequestDto
     {
         [Required]
         [MinLength(1)]
         public List<Guid> PartIds { get; set; } = new();
-
-        /// <summary>
-        /// When true, each entry includes the non-shadow usage history for that part
-        /// (sorted by <c>StartDate</c> ascending).
-        /// </summary>
-        public bool IncludeHistory { get; set; } = false;
-    }
-
-    /// <summary>
-    /// One entry in the parts batch response. <see cref="History"/> is non-null only when the
-    /// caller asked for histories; an empty list means the part has no records yet.
-    /// </summary>
-    public class BatchPartEntryDto
-    {
-        public BikePartDto Part { get; set; } = default!;
-        public List<UsagePeriodDto>? History { get; set; }
     }
 }
