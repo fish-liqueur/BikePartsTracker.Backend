@@ -13,7 +13,7 @@ namespace BikePartsTracker.Data
         public DbSet<ChainCycle> ChainCycles { get; set; }
         public DbSet<BikePart> BikeParts { get; set; }
         public DbSet<Ride> Rides { get; set; }
-        public DbSet<Work> Works { get; set; }
+        public DbSet<MaintenanceTask> MaintenanceTasks { get; set; }
         public DbSet<PartUsageHistory> PartUsageHistories { get; set; }
         public DbSet<ExternalServiceIntegration> ExternalServiceIntegrations { get; set; }
         public DbSet<StravaAthlete> StravaAthletes { get; set; }
@@ -45,7 +45,7 @@ namespace BikePartsTracker.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<User>()
-                .HasMany(u => u.Works)
+                .HasMany(u => u.MaintenanceTasks)
                 .WithOne(w => w.User)
                 .HasForeignKey(w => w.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -82,9 +82,9 @@ namespace BikePartsTracker.Data
                 .OnDelete(DeleteBehavior.SetNull);
 
             modelBuilder.Entity<PartUsageHistory>()
-                .HasOne(h => h.Work)
+                .HasOne(h => h.MaintenanceTask)
                 .WithMany(w => w.ShadowUsagePeriods)
-                .HasForeignKey(h => h.WorkId)
+                .HasForeignKey(h => h.MaintenanceTaskId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // External service integration relationships
@@ -117,9 +117,9 @@ namespace BikePartsTracker.Data
                 .HasIndex(h => new { h.BikePartId, h.StartDate, h.EndDate });
 
             modelBuilder.Entity<PartUsageHistory>()
-                .HasIndex(h => h.WorkId);
+                .HasIndex(h => h.MaintenanceTaskId);
 
-            modelBuilder.Entity<Work>()
+            modelBuilder.Entity<MaintenanceTask>()
                 .HasIndex(w => new { w.UserId, w.ParentType, w.ParentId, w.IsActive });
 
             // User settings one-to-one relationship

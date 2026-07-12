@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BikePartsTracker.Models
 {
-    public class Work
+    public class MaintenanceTask
     {
         [Key]
         public Guid Id { get; set; }
@@ -16,9 +16,9 @@ namespace BikePartsTracker.Models
         public string? Description { get; set; }
         public DateTime StartDate { get; set; }
 
-        public WorkType Type { get; set; } = WorkType.OneTime;
-        public WorkTriggerType TriggerType { get; set; } = WorkTriggerType.Distance;
-        public WorkParentType ParentType { get; set; } = WorkParentType.Part;
+        public MaintenanceTaskType Type { get; set; } = MaintenanceTaskType.OneTime;
+        public MaintenanceTaskTriggerType TriggerType { get; set; } = MaintenanceTaskTriggerType.Distance;
+        public MaintenanceTaskParentType ParentType { get; set; } = MaintenanceTaskParentType.Part;
 
         /// <summary>
         /// Parent entity identifier. Depends on ParentType.

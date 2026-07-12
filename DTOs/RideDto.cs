@@ -42,7 +42,7 @@ namespace BikePartsTracker.DTOs
     {
         public List<Guid> AffectedRideIds { get; set; } = new();
         public List<Guid> AffectedPartIds { get; set; } = new();
-        public List<Guid> AffectedWorkIds { get; set; } = new();
+        public List<Guid> AffectedMaintenanceTaskIds { get; set; } = new();
         public List<Guid> AffectedBikeIds { get; set; } = new();
     }
 

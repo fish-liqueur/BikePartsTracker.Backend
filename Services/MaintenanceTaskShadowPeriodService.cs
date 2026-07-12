@@ -4,18 +4,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BikePartsTracker.Services
 {
-    public interface IWorkShadowPeriodService
+    public interface IMaintenanceTaskShadowPeriodService
     {
-        Task SyncShadowPeriodsAsync(Work work);
+        Task SyncShadowPeriodsAsync(MaintenanceTask maintenanceTask);
         Task SyncShadowPeriodsForPartAsync(Guid bikePartId);
     }
 
-    public class WorkShadowPeriodService : IWorkShadowPeriodService
+    public class MaintenanceTaskShadowPeriodService : IMaintenanceTaskShadowPeriodService
     {
         private readonly AppDbContext _context;
         private readonly IUsagePeriodDistanceService _usagePeriodDistanceService;
 
-        public WorkShadowPeriodService(AppDbContext context, IUsagePeriodDistanceService usagePeriodDistanceService)
+        public MaintenanceTaskShadowPeriodService(AppDbContext context, IUsagePeriodDistanceService usagePeriodDistanceService)
         {
             _context = context;
             _usagePeriodDistanceService = usagePeriodDistanceService;
@@ -23,37 +23,37 @@ namespace BikePartsTracker.Services
 
         public async Task SyncShadowPeriodsForPartAsync(Guid bikePartId)
         {
-            var works = await _context.Works
-                .Where(w => w.ParentType == WorkParentType.Part &&
+            var maintenanceTasks = await _context.MaintenanceTasks
+                .Where(w => w.ParentType == MaintenanceTaskParentType.Part &&
                             w.ParentId == bikePartId &&
-                            w.TriggerType == WorkTriggerType.Distance &&
+                            w.TriggerType == MaintenanceTaskTriggerType.Distance &&
                             w.IsActive)
                 .ToListAsync();
 
-            foreach (var work in works)
+            foreach (var maintenanceTask in maintenanceTasks)
             {
-                await SyncShadowPeriodsAsync(work);
+                await SyncShadowPeriodsAsync(maintenanceTask);
             }
         }
 
-        public async Task SyncShadowPeriodsAsync(Work work)
+        public async Task SyncShadowPeriodsAsync(MaintenanceTask maintenanceTask)
         {
-            if (work.ParentType != WorkParentType.Part || work.TriggerType != WorkTriggerType.Distance)
+            if (maintenanceTask.ParentType != MaintenanceTaskParentType.Part || maintenanceTask.TriggerType != MaintenanceTaskTriggerType.Distance)
             {
                 return;
             }
 
             var existingShadows = await _context.PartUsageHistories
-                .Where(h => h.WorkId == work.Id && h.IsShadow)
+                .Where(h => h.MaintenanceTaskId == maintenanceTask.Id && h.IsShadow)
                 .ToListAsync();
             _context.PartUsageHistories.RemoveRange(existingShadows);
 
             var overlappingPeriods = await _context.PartUsageHistories
                 .Include(h => h.BikePart)
-                .Where(h => h.BikePartId == work.ParentId &&
+                .Where(h => h.BikePartId == maintenanceTask.ParentId &&
                             !h.IsShadow &&
-                            h.StartDate < work.StartDate &&
-                            (h.EndDate == null || h.EndDate > work.StartDate))
+                            h.StartDate < maintenanceTask.StartDate &&
+                            (h.EndDate == null || h.EndDate > maintenanceTask.StartDate))
                 .ToListAsync();
 
             var now = DateTime.UtcNow;
@@ -65,12 +65,12 @@ namespace BikePartsTracker.Services
                     BikePartId = source.BikePartId,
                     BikePart = source.BikePart,
                     BikeId = source.BikeId,
-                    WorkId = work.Id,
+                    MaintenanceTaskId = maintenanceTask.Id,
                     SourceUsagePeriodId = source.Id,
-                    StartDate = work.StartDate,
+                    StartDate = maintenanceTask.StartDate,
                     EndDate = source.EndDate,
                     IsShadow = true,
-                    Notes = "Auto-generated shadow usage period for work window.",
+                    Notes = "Auto-generated shadow usage period for maintenance task window.",
                     CreatedAt = now,
                     UpdatedAt = now
                 };

@@ -44,20 +44,20 @@ namespace BikePartsTracker.Models
         Other
     }
 
-    public enum WorkType
+    public enum MaintenanceTaskType
     {
         OneTime = 1,
         Repeating = 2,
         Cyclic = 3
     }
 
-    public enum WorkTriggerType
+    public enum MaintenanceTaskTriggerType
     {
         Distance = 1,
         Time = 2
     }
 
-    public enum WorkParentType
+    public enum MaintenanceTaskParentType
     {
         Part = 1,
         Bike = 2,

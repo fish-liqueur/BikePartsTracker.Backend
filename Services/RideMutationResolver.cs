@@ -33,46 +33,46 @@ namespace BikePartsTracker.Services
             var bikeIdSet = bikeIds.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToHashSet();
             var rideIdList = rideIds.Distinct().ToList();
 
-            var affectedWorkIds = new HashSet<Guid>();
+            var affectedMaintenanceTaskIds = new HashSet<Guid>();
 
             if (partIdSet.Count > 0)
             {
-                var partWorks = await _context.Works
+                var partMaintenanceTasks = await _context.MaintenanceTasks
                     .Where(w => w.UserId == userId &&
-                                w.ParentType == WorkParentType.Part &&
+                                w.ParentType == MaintenanceTaskParentType.Part &&
                                 partIdSet.Contains(w.ParentId))
                     .Select(w => w.Id)
                     .ToListAsync();
-                affectedWorkIds.UnionWith(partWorks);
+                affectedMaintenanceTaskIds.UnionWith(partMaintenanceTasks);
             }
 
             if (bikeIdSet.Count > 0)
             {
-                var bikeWorks = await _context.Works
+                var bikeMaintenanceTasks = await _context.MaintenanceTasks
                     .Where(w => w.UserId == userId &&
-                                w.ParentType == WorkParentType.Bike &&
+                                w.ParentType == MaintenanceTaskParentType.Bike &&
                                 bikeIdSet.Contains(w.ParentId))
                     .Select(w => w.Id)
                     .ToListAsync();
-                affectedWorkIds.UnionWith(bikeWorks);
+                affectedMaintenanceTaskIds.UnionWith(bikeMaintenanceTasks);
             }
 
             if (partIdSet.Count > 0)
             {
-                var cycleWorks = await _context.Works
-                    .Where(w => w.UserId == userId && w.ParentType == WorkParentType.ChainCycle)
+                var cycleMaintenanceTasks = await _context.MaintenanceTasks
+                    .Where(w => w.UserId == userId && w.ParentType == MaintenanceTaskParentType.ChainCycle)
                     .Join(_context.ChainCycles,
                         w => w.ParentId,
                         c => c.Id,
-                        (w, c) => new { Work = w, Cycle = c })
+                        (w, c) => new { MaintenanceTask = w, Cycle = c })
                     .ToListAsync();
 
-                foreach (var entry in cycleWorks)
+                foreach (var entry in cycleMaintenanceTasks)
                 {
                     var chains = entry.Cycle.Chains;
                     if (chains.Any(chainId => chainId.HasValue && partIdSet.Contains(chainId.Value)))
                     {
-                        affectedWorkIds.Add(entry.Work.Id);
+                        affectedMaintenanceTaskIds.Add(entry.MaintenanceTask.Id);
                     }
                 }
             }
@@ -82,7 +82,7 @@ namespace BikePartsTracker.Services
                 AffectedRideIds = rideIdList,
                 AffectedPartIds = partIdSet.ToList(),
                 AffectedBikeIds = bikeIdSet.ToList(),
-                AffectedWorkIds = affectedWorkIds.ToList()
+                AffectedMaintenanceTaskIds = affectedMaintenanceTaskIds.ToList()
             };
         }
     }

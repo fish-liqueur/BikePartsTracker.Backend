@@ -16,16 +16,16 @@ namespace BikePartsTracker.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IUsagePeriodDistanceService _usagePeriodDistanceService;
-        private readonly IWorkShadowPeriodService _workShadowPeriodService;
+        private readonly IMaintenanceTaskShadowPeriodService _maintenanceTaskShadowPeriodService;
 
         public UsagePeriodsController(
             AppDbContext context,
             IUsagePeriodDistanceService usagePeriodDistanceService,
-            IWorkShadowPeriodService workShadowPeriodService)
+            IMaintenanceTaskShadowPeriodService maintenanceTaskShadowPeriodService)
         {
             _context = context;
             _usagePeriodDistanceService = usagePeriodDistanceService;
-            _workShadowPeriodService = workShadowPeriodService;
+            _maintenanceTaskShadowPeriodService = maintenanceTaskShadowPeriodService;
         }
 
         [HttpPost]
@@ -74,7 +74,7 @@ namespace BikePartsTracker.Controllers
             _context.PartUsageHistories.Add(period);
             await _context.SaveChangesAsync();
 
-            await _workShadowPeriodService.SyncShadowPeriodsForPartAsync(dto.BikePartId);
+            await _maintenanceTaskShadowPeriodService.SyncShadowPeriodsForPartAsync(dto.BikePartId);
 
             return CreatedAtAction("GetPartHistory", "Parts", new { id = dto.BikePartId }, MapToDto(period));
         }
@@ -134,7 +134,7 @@ namespace BikePartsTracker.Controllers
             await _usagePeriodDistanceService.RecalculatePeriodDistanceAsync(period);
             await _context.SaveChangesAsync();
 
-            await _workShadowPeriodService.SyncShadowPeriodsForPartAsync(period.BikePartId);
+            await _maintenanceTaskShadowPeriodService.SyncShadowPeriodsForPartAsync(period.BikePartId);
 
             return Ok(MapToDto(period));
         }
@@ -165,7 +165,7 @@ namespace BikePartsTracker.Controllers
             _context.PartUsageHistories.Remove(period);
             await _context.SaveChangesAsync();
 
-            await _workShadowPeriodService.SyncShadowPeriodsForPartAsync(bikePartId);
+            await _maintenanceTaskShadowPeriodService.SyncShadowPeriodsForPartAsync(bikePartId);
             return NoContent();
         }
 
@@ -178,7 +178,7 @@ namespace BikePartsTracker.Controllers
             EndDate = h.EndDate,
             Distance = h.Distance,
             IsShadow = h.IsShadow,
-            WorkId = h.WorkId,
+            MaintenanceTaskId = h.MaintenanceTaskId,
             SourceUsagePeriodId = h.SourceUsagePeriodId,
             Notes = h.Notes
         };

@@ -21,9 +21,9 @@ namespace BikePartsTracker.Models
         public PartUsageHistory? SourceUsagePeriod { get; set; }
         public ICollection<PartUsageHistory> ShadowChildren { get; set; } = new List<PartUsageHistory>();
 
-        [ForeignKey(nameof(Work))]
-        public Guid? WorkId { get; set; }
-        public Work? Work { get; set; }
+        [ForeignKey(nameof(MaintenanceTask))]
+        public Guid? MaintenanceTaskId { get; set; }
+        public MaintenanceTask? MaintenanceTask { get; set; }
 
         public DateTime StartDate { get; set; }
         public DateTime? EndDate { get; set; }

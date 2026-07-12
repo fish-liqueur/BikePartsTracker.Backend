@@ -14,12 +14,12 @@ namespace BikePartsTracker.Services
     {
         private readonly AppDbContext _context;
         private readonly IUsagePeriodDistanceService _distanceService;
-        private readonly IWorkShadowPeriodService _shadowService;
+        private readonly IMaintenanceTaskShadowPeriodService _shadowService;
 
         public PartUsageTrackingService(
             AppDbContext context,
             IUsagePeriodDistanceService distanceService,
-            IWorkShadowPeriodService shadowService)
+            IMaintenanceTaskShadowPeriodService shadowService)
         {
             _context = context;
             _distanceService = distanceService;

@@ -21,7 +21,7 @@ namespace BikePartsTracker.Models
 
         public ICollection<Ride> Rides { get; set; } = new List<Ride>();
 
-        public ICollection<Work> Works { get; set; } = new List<Work>();
+        public ICollection<MaintenanceTask> MaintenanceTasks { get; set; } = new List<MaintenanceTask>();
         
         /// <summary>
         /// External service integrations (Strava, Komoot, etc.)

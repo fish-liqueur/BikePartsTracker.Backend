@@ -3,15 +3,15 @@ using BikePartsTracker.Models;
 
 namespace BikePartsTracker.DTOs
 {
-    public class WorkDto
+    public class MaintenanceTaskDto
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public DateTime StartDate { get; set; }
-        public WorkType Type { get; set; }
-        public WorkTriggerType TriggerType { get; set; }
-        public WorkParentType ParentType { get; set; }
+        public MaintenanceTaskType Type { get; set; }
+        public MaintenanceTaskTriggerType TriggerType { get; set; }
+        public MaintenanceTaskParentType ParentType { get; set; }
         public Guid ParentId { get; set; }
         public double TriggerValue { get; set; }
         public bool IsActive { get; set; }
@@ -21,29 +21,29 @@ namespace BikePartsTracker.DTOs
         public bool NeedsAttention { get; set; }
     }
 
-    public class CreateWorkDto
+    public class CreateMaintenanceTaskDto
     {
         [Required]
         public string Name { get; set; } = string.Empty;
 
         public string? Description { get; set; }
         public DateTime StartDate { get; set; } = DateTime.UtcNow;
-        public WorkType Type { get; set; } = WorkType.OneTime;
-        public WorkTriggerType TriggerType { get; set; } = WorkTriggerType.Distance;
-        public WorkParentType ParentType { get; set; } = WorkParentType.Part;
+        public MaintenanceTaskType Type { get; set; } = MaintenanceTaskType.OneTime;
+        public MaintenanceTaskTriggerType TriggerType { get; set; } = MaintenanceTaskTriggerType.Distance;
+        public MaintenanceTaskParentType ParentType { get; set; } = MaintenanceTaskParentType.Part;
         public Guid ParentId { get; set; }
         public double TriggerValue { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
-    public class UpdateWorkDto
+    public class UpdateMaintenanceTaskDto
     {
         public string? Name { get; set; }
         public string? Description { get; set; }
         public DateTime? StartDate { get; set; }
-        public WorkType? Type { get; set; }
-        public WorkTriggerType? TriggerType { get; set; }
-        public WorkParentType? ParentType { get; set; }
+        public MaintenanceTaskType? Type { get; set; }
+        public MaintenanceTaskTriggerType? TriggerType { get; set; }
+        public MaintenanceTaskParentType? ParentType { get; set; }
         public Guid? ParentId { get; set; }
         public double? TriggerValue { get; set; }
         public bool? IsActive { get; set; }

@@ -15,16 +15,16 @@ namespace BikePartsTracker.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IPartUsageTrackingService _usageTracking;
-        private readonly IWorkEvaluationService _workEvaluationService;
+        private readonly IMaintenanceTaskEvaluationService _maintenanceTaskEvaluationService;
 
         public PartsController(
             AppDbContext context,
             IPartUsageTrackingService usageTracking,
-            IWorkEvaluationService workEvaluationService)
+            IMaintenanceTaskEvaluationService maintenanceTaskEvaluationService)
         {
             _context = context;
             _usageTracking = usageTracking;
-            _workEvaluationService = workEvaluationService;
+            _maintenanceTaskEvaluationService = maintenanceTaskEvaluationService;
         }
 
         // GET: api/Parts
@@ -104,7 +104,7 @@ namespace BikePartsTracker.Controllers
         private const int BatchPartsMaxIds = 200;
 
         // POST: api/Parts/batch
-        // Returns part summaries (TotalDistance, PendingWorksCount) only. Usage history lives
+        // Returns part summaries (TotalDistance, PendingMaintenanceTasksCount) only. Usage history lives
         // behind the dedicated history endpoints below.
         [HttpPost("batch")]
         [Authorize]
@@ -169,7 +169,7 @@ namespace BikePartsTracker.Controllers
                     EndDate = h.EndDate,
                     Distance = h.Distance,
                     IsShadow = h.IsShadow,
-                    WorkId = h.WorkId,
+                    MaintenanceTaskId = h.MaintenanceTaskId,
                     SourceUsagePeriodId = h.SourceUsagePeriodId,
                     Notes = h.Notes
                 })
@@ -226,7 +226,7 @@ namespace BikePartsTracker.Controllers
                     EndDate = h.EndDate,
                     Distance = h.Distance,
                     IsShadow = h.IsShadow,
-                    WorkId = h.WorkId,
+                    MaintenanceTaskId = h.MaintenanceTaskId,
                     SourceUsagePeriodId = h.SourceUsagePeriodId,
                     Notes = h.Notes
                 })
@@ -582,8 +582,8 @@ namespace BikePartsTracker.Controllers
 
         /// <summary>
         /// Projects a list of <see cref="BikePart"/> entities to <see cref="BikePartDto"/> with
-        /// computed <c>TotalDistance</c> and <c>PendingWorksCount</c> summaries. Detailed usage
-        /// history is fetched separately via the dedicated usage-periods endpoint.
+        /// computed <c>TotalDistance</c> and <c>PendingMaintenanceTasksCount</c> summaries. Detailed
+        /// usage history is fetched separately via the dedicated usage-periods endpoint.
         /// </summary>
         private async Task<List<BikePartDto>> MapPartsAsync(Guid userId, List<BikePart> parts)
         {
@@ -602,20 +602,20 @@ namespace BikePartsTracker.Controllers
 
             var distances = distanceRows.ToDictionary(x => x.PartId, x => x.Total);
 
-            var works = await _context.Works
+            var maintenanceTasks = await _context.MaintenanceTasks
                 .Where(w => w.UserId == userId &&
                             w.IsActive &&
-                            w.ParentType == WorkParentType.Part &&
+                            w.ParentType == MaintenanceTaskParentType.Part &&
                             partIds.Contains(w.ParentId))
                 .ToListAsync();
 
             var pending = new Dictionary<Guid, int>();
-            foreach (var work in works)
+            foreach (var maintenanceTask in maintenanceTasks)
             {
-                var consumed = await _workEvaluationService.GetConsumedValueAsync(work);
-                if (consumed >= work.TriggerValue)
+                var consumed = await _maintenanceTaskEvaluationService.GetConsumedValueAsync(maintenanceTask);
+                if (consumed >= maintenanceTask.TriggerValue)
                 {
-                    pending[work.ParentId] = pending.GetValueOrDefault(work.ParentId) + 1;
+                    pending[maintenanceTask.ParentId] = pending.GetValueOrDefault(maintenanceTask.ParentId) + 1;
                 }
             }
 
@@ -632,7 +632,7 @@ namespace BikePartsTracker.Controllers
                 BikeId = p.BikeId,
                 IsActive = p.IsActive,
                 TotalDistance = distances.TryGetValue(p.Id, out var d) ? d : 0,
-                PendingWorksCount = pending.TryGetValue(p.Id, out var c) ? c : 0,
+                PendingMaintenanceTasksCount = pending.TryGetValue(p.Id, out var c) ? c : 0,
                 CreatedAt = p.CreatedAt,
                 UpdatedAt = p.UpdatedAt
             }).ToList();

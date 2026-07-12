@@ -38,9 +38,9 @@ namespace BikePartsTracker.DTOs
         public double TotalDistance { get; set; }
 
         /// <summary>
-        /// Number of works for this part whose consumed value has reached or exceeded the trigger.
+        /// Number of maintenance tasks for this part whose consumed value has reached or exceeded the trigger.
         /// </summary>
-        public int PendingWorksCount { get; set; }
+        public int PendingMaintenanceTasksCount { get; set; }
 
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

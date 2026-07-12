@@ -11,7 +11,7 @@ namespace BikePartsTracker.DTOs
         public DateTime? EndDate { get; set; }
         public double Distance { get; set; }
         public bool IsShadow { get; set; }
-        public Guid? WorkId { get; set; }
+        public Guid? MaintenanceTaskId { get; set; }
         public Guid? SourceUsagePeriodId { get; set; }
         public string? Notes { get; set; }
     }
