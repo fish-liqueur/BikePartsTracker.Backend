@@ -212,6 +212,7 @@ appsettings.Docker.json
 docker-compose.override.yml
 
 # IDE
+.cursor/
 *.swp
 *.swo
 *~
@@ -224,5 +225,3 @@ Desktop.ini
 # Temporary files
 *.tmp
 *.temp
-appsettings.Docker.json
-appsettings.Docker.json
