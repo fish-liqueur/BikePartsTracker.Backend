@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BikePartsTracker.Services;
 using BikePartsTracker.DTOs;
@@ -9,6 +10,7 @@ namespace BikePartsTracker.Controllers
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
+    [AllowAnonymous]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;

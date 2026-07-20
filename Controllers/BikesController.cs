@@ -1,15 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using BikePartsTracker.Data;
 using BikePartsTracker.Models;
 using BikePartsTracker.DTOs;
+using BikePartsTracker.Extensions;
 
 namespace BikePartsTracker.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class BikesController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -21,36 +22,45 @@ namespace BikePartsTracker.Controllers
 
         // GET: api/Bikes
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Bike>>> GetBikes()
+        public async Task<ActionResult<IEnumerable<BikeDto>>> GetBikes()
         {
-            return await _context.Bikes
-                .Include(b => b.User)
+            if (!User.TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var bikes = await _context.Bikes
+                .Where(b => b.UserId == userId)
                 .ToListAsync();
+
+            return Ok(bikes.Select(MapToDto));
         }
 
         // GET: api/Bikes/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Bike>> GetBike(Guid id)
+        public async Task<ActionResult<BikeDto>> GetBike(Guid id)
         {
+            if (!User.TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
             var bike = await _context.Bikes
-                .Include(b => b.User)
-                .FirstOrDefaultAsync(b => b.Id == id);
+                .FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
 
             if (bike == null)
             {
                 return NotFound();
             }
 
-            return bike;
+            return Ok(MapToDto(bike));
         }
 
         // POST: api/Bikes
         [HttpPost]
-        [Authorize]
-        public async Task<ActionResult<Bike>> PostBike(CreateBikeDto createBikeDto)
+        public async Task<ActionResult<BikeDto>> PostBike(CreateBikeDto createBikeDto)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            if (!User.TryGetUserId(out var userId))
             {
                 return Unauthorized();
             }
@@ -81,27 +91,24 @@ namespace BikePartsTracker.Controllers
             _context.Bikes.Add(bike);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetBike), new { id = bike.Id }, bike);
+            return CreatedAtAction(nameof(GetBike), new { id = bike.Id }, MapToDto(bike));
         }
 
         // PUT: api/Bikes/5
         [HttpPut("{id}")]
-        [Authorize]
-        public async Task<ActionResult<Bike>> PutBike(Guid id, [FromBody] UpdateBikeDto updateBikeDto)
+        public async Task<ActionResult<BikeDto>> PutBike(Guid id, [FromBody] UpdateBikeDto updateBikeDto)
         {
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
 
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            if (!User.TryGetUserId(out var userId))
             {
                 return Unauthorized();
             }
 
             var bike = await _context.Bikes
-                .Include(b => b.User)
                 .FirstOrDefaultAsync(b => b.Id == id);
 
             if (bike == null)
@@ -153,14 +160,21 @@ namespace BikePartsTracker.Controllers
                 }
             }
 
-            return Ok(bike);
+            return Ok(MapToDto(bike));
         }
 
         // DELETE: api/Bikes/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBike(Guid id)
         {
-            var bike = await _context.Bikes.FindAsync(id);
+            if (!User.TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            var bike = await _context.Bikes
+                .FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
+
             if (bike == null)
             {
                 return NotFound();
@@ -176,7 +190,6 @@ namespace BikePartsTracker.Controllers
         /// Sync bikes (merge/update bikes from frontend, typically after Strava import)
         /// </summary>
         [HttpPost("sync")]
-        [Authorize]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -189,8 +202,7 @@ namespace BikePartsTracker.Controllers
 
             try
             {
-                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                if (!User.TryGetUserId(out var userId))
                 {
                     return Unauthorized();
                 }
@@ -286,5 +298,20 @@ namespace BikePartsTracker.Controllers
         {
             return _context.Bikes.Any(e => e.Id == id);
         }
+
+        private static BikeDto MapToDto(Bike bike) => new()
+        {
+            Id = bike.Id,
+            Name = bike.Name,
+            Description = bike.Description,
+            Type = Enum.TryParse<BikeType>(bike.Type, ignoreCase: true, out var type) ? type : BikeType.Other,
+            Parts = new List<BikePartDto>(),
+            TotalDistance = bike.TotalDistance,
+            CreatedAt = bike.CreatedAt,
+            UpdatedAt = bike.UpdatedAt,
+            StravaId = bike.StravaBikeId,
+            StravaDistance = bike.StravaDistance,
+            IsActive = bike.IsActive
+        };
     }
 }

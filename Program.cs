@@ -3,6 +3,7 @@ using BikePartsTracker.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
@@ -58,6 +59,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "your-super-secret-key-with-at-least-32-characters"))
         };
     });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 // Register services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -145,3 +153,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Expose entry assembly to WebApplicationFactory for integration tests
+public partial class Program { }

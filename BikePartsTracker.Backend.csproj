@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="BikePartsTracker.Backend.Tests/**" />
+    <Content Remove="BikePartsTracker.Backend.Tests/**" />
+    <EmbeddedResource Remove="BikePartsTracker.Backend.Tests/**" />
+    <None Remove="BikePartsTracker.Backend.Tests/**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.8">

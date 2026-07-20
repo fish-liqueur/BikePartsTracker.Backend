@@ -11,6 +11,7 @@ namespace BikePartsTracker.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class PartsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -29,7 +30,6 @@ namespace BikePartsTracker.Controllers
 
         // GET: api/Parts
         [HttpGet]
-        [Authorize]
         public async Task<ActionResult<IEnumerable<BikePartDto>>> GetParts()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -47,7 +47,6 @@ namespace BikePartsTracker.Controllers
 
         // GET: api/Parts/bike/5
         [HttpGet("bike/{bikeId}")]
-        [Authorize]
         public async Task<ActionResult<IEnumerable<BikePartDto>>> GetPartsByBike(Guid bikeId)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -73,7 +72,6 @@ namespace BikePartsTracker.Controllers
 
         // GET: api/Parts/5
         [HttpGet("{id}")]
-        [Authorize]
         public async Task<ActionResult<BikePartDto>> GetPart(Guid id)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -107,7 +105,6 @@ namespace BikePartsTracker.Controllers
         // Returns part summaries (TotalDistance, PendingMaintenanceTasksCount) only. Usage history lives
         // behind the dedicated history endpoints below.
         [HttpPost("batch")]
-        [Authorize]
         public async Task<ActionResult<Dictionary<Guid, BikePartDto>>> BatchParts([FromBody] BatchPartIdsRequestDto request)
         {
             if (!ModelState.IsValid)
@@ -140,7 +137,6 @@ namespace BikePartsTracker.Controllers
         // GET: api/Parts/{id}/history
         // Non-shadow usage history for a single part, sorted by StartDate ascending.
         [HttpGet("{id}/history")]
-        [Authorize]
         public async Task<ActionResult<IEnumerable<UsagePeriodDto>>> GetPartHistory(Guid id)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -181,7 +177,6 @@ namespace BikePartsTracker.Controllers
         // POST: api/Parts/batch/history
         // Multi-fetch histories. Known owned parts with no records appear as empty arrays.
         [HttpPost("batch/history")]
-        [Authorize]
         public async Task<ActionResult<Dictionary<Guid, List<UsagePeriodDto>>>> BatchPartsHistory([FromBody] BatchPartIdsRequestDto request)
         {
             if (!ModelState.IsValid)
@@ -242,7 +237,6 @@ namespace BikePartsTracker.Controllers
 
         // POST: api/Parts
         [HttpPost]
-        [Authorize]
         public async Task<ActionResult<BikePartDto>> PostPart([FromBody] CreatePartDto createPartDto)
         {
             Console.WriteLine("PostPart called");
@@ -308,7 +302,6 @@ namespace BikePartsTracker.Controllers
 
         // PUT: api/Parts/5
         [HttpPut("{id}")]
-        [Authorize]
         public async Task<ActionResult<object>> PutPart(Guid id, [FromBody] UpdatePartDto updatePartDto)
         {
             if (!ModelState.IsValid)
@@ -438,7 +431,6 @@ namespace BikePartsTracker.Controllers
 
         // DELETE: api/Parts/5
         [HttpDelete("{id}")]
-        [Authorize]
         public async Task<ActionResult<object>> DeletePart(Guid id)
         {
             // Get current user from JWT token
@@ -475,7 +467,6 @@ namespace BikePartsTracker.Controllers
 
         // GET: api/Parts/search?q=query
         [HttpGet("search")]
-        [Authorize]
         public async Task<ActionResult<IEnumerable<BikePartDto>>> SearchParts([FromQuery] string q)
         {
             if (string.IsNullOrWhiteSpace(q))
@@ -503,7 +494,6 @@ namespace BikePartsTracker.Controllers
 
         // GET: api/Parts/type?type=Chain
         [HttpGet("type")]
-        [Authorize]
         public async Task<ActionResult<IEnumerable<BikePartDto>>> GetPartsByType([FromQuery] string type)
         {
             if (string.IsNullOrWhiteSpace(type))

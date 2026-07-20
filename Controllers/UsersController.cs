@@ -1,15 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using BikePartsTracker.Data;
 using BikePartsTracker.Models;
 using BikePartsTracker.DTOs;
+using BikePartsTracker.Extensions;
 
 namespace BikePartsTracker.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -17,95 +18,6 @@ namespace BikePartsTracker.Controllers
         public UsersController(AppDbContext context)
         {
             _context = context;
-        }
-
-        // GET: api/Users
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
-        {
-            return await _context.Users
-                .Include(u => u.Bikes)
-                .ToListAsync();
-        }
-
-        // GET: api/Users/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(Guid id)
-        {
-            var user = await _context.Users
-                .Include(u => u.Bikes)
-                .FirstOrDefaultAsync(u => u.Id == id);
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return user;
-        }
-
-        // POST: api/Users
-        [HttpPost]
-        public async Task<ActionResult<User>> PostUser(User user)
-        {
-            user.Id = Guid.NewGuid();
-            user.CreatedAt = DateTime.UtcNow;
-            
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetUser), new { id = user.Id }, user);
-        }
-
-        // PUT: api/Users/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutUser(Guid id, User user)
-        {
-            if (id != user.Id)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(user).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // DELETE: api/Users/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(Guid id)
-        {
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool UserExists(Guid id)
-        {
-            return _context.Users.Any(e => e.Id == id);
         }
 
         /// <summary>
@@ -116,15 +28,12 @@ namespace BikePartsTracker.Controllers
         /// <response code="401">User not authenticated</response>
         /// <response code="404">User settings not found</response>
         [HttpGet("settings")]
-        [Authorize]
         [ProducesResponseType(typeof(UserSettingsDto), 200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
         public async Task<ActionResult<UserSettingsDto>> GetUserSettings()
         {
-            // Get current user from JWT token
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            if (!User.TryGetUserId(out var userId))
             {
                 return Unauthorized();
             }
@@ -165,7 +74,6 @@ namespace BikePartsTracker.Controllers
         /// <response code="400">Invalid request data</response>
         /// <response code="401">User not authenticated</response>
         [HttpPut("settings")]
-        [Authorize]
         [ProducesResponseType(typeof(UserSettingsDto), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(401)]
@@ -176,9 +84,7 @@ namespace BikePartsTracker.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Get current user from JWT token
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            if (!User.TryGetUserId(out var userId))
             {
                 return Unauthorized();
             }
