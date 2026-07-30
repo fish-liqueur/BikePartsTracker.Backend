@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Mvc;
+using BikePartsTracker.Localization;
+using BikePartsTracker.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +20,41 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+
+// Localization (ADR 0006): backend error-message catalog + culture resolution.
+// Supported cultures: English (fallback), German, Russian, Ukrainian.
+var supportedCultures = new[] { "en", "de", "ru", "uk" };
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.SetDefaultCulture("en")
+        .AddSupportedCultures(supportedCultures)
+        .AddSupportedUICultures(supportedCultures);
+    // Per-request messages are driven by Accept-Language (ADR 0006 §E3); an unknown/malformed
+    // locale is ignored and falls back to the default culture (en) — it never 500s.
+    options.ApplyCurrentCultureToResponseHeaders = true;
+});
+builder.Services.AddScoped<ILocalizedErrorFactory, LocalizedErrorFactory>();
+
+// Validation failures use the shared Problem Details envelope with a stable code (ADR 0006 §E1).
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var problemDetails = new ValidationProblemDetails(context.ModelState)
+        {
+            Type = "about:blank",
+            Title = "Bad Request",
+            Status = StatusCodes.Status400BadRequest,
+        };
+        problemDetails.Extensions["code"] = ErrorCodes.CommonValidation;
+
+        return new BadRequestObjectResult(problemDetails)
+        {
+            ContentTypes = { "application/problem+json" }
+        };
+    };
+});
 
 // Add CORS for frontend
 builder.Services.AddCors(options =>
@@ -130,6 +168,11 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline
 // CORS must be the first middleware to handle preflight OPTIONS requests
 app.UseCors("AllowFrontend");
+
+// Resolve the request culture (from Accept-Language) before the error handler, so a thrown
+// AppException localizes its detail in the caller's language as it unwinds (ADR 0006 §E1/§E3).
+app.UseRequestLocalization();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

@@ -31,6 +31,15 @@ namespace BikePartsTracker.Models
         /// </summary>
         public bool showTips { get; set; } = true;
 
+        /// <summary>
+        /// The rider's preferred language as a BCP-47 tag (e.g. "en", "de", "ru", "uk").
+        /// Null means "no explicit choice" and resolves to English at the display boundary.
+        /// Source of truth for startup resolution and out-of-app content (ADR 0006 §E3);
+        /// per-request API messages are localized from Accept-Language, not this field.
+        /// </summary>
+        [MaxLength(16)]
+        public string? Language { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }

@@ -61,7 +61,8 @@ namespace BikePartsTracker.Controllers
                 DefaultChainCycleLength = settings.DefaultChainCycleLength,
                 DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm,
                 defaultUseChainCycle = settings.defaultUseChainCycle,
-                showTips = settings.showTips
+                showTips = settings.showTips,
+                Language = settings.Language
             });
         }
 
@@ -124,6 +125,8 @@ namespace BikePartsTracker.Controllers
                 settings.defaultUseChainCycle = updateDto.defaultUseChainCycle.Value;
             if (updateDto.showTips.HasValue)
                 settings.showTips = updateDto.showTips.Value;
+            if (updateDto.Language != null)
+                settings.Language = updateDto.Language;
 
             await _context.SaveChangesAsync();
 
@@ -132,7 +135,8 @@ namespace BikePartsTracker.Controllers
                 DefaultChainCycleLength = settings.DefaultChainCycleLength,
                 DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm,
                 defaultUseChainCycle = settings.defaultUseChainCycle,
-                showTips = settings.showTips
+                showTips = settings.showTips,
+                Language = settings.Language
             });
         }
     }

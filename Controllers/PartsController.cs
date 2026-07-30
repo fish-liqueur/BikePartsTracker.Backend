@@ -6,6 +6,8 @@ using BikePartsTracker.Data;
 using BikePartsTracker.Models;
 using BikePartsTracker.DTOs;
 using BikePartsTracker.Services;
+using BikePartsTracker.Exceptions;
+using BikePartsTracker.Localization;
 
 namespace BikePartsTracker.Controllers
 {
@@ -60,7 +62,7 @@ namespace BikePartsTracker.Controllers
 
             if (bike == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             var parts = await _context.BikeParts
@@ -84,12 +86,12 @@ namespace BikePartsTracker.Controllers
 
             if (part == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             if (part.UserId != userId)
             {
-                return Forbid();
+                throw AppException.Forbidden();
             }
 
             var dto = await MapPartAsync(userId, part);
@@ -107,11 +109,6 @@ namespace BikePartsTracker.Controllers
         [HttpPost("batch")]
         public async Task<ActionResult<Dictionary<Guid, BikePartDto>>> BatchParts([FromBody] BatchPartIdsRequestDto request)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
@@ -120,7 +117,7 @@ namespace BikePartsTracker.Controllers
 
             if (request.PartIds.Count > BatchPartsMaxIds)
             {
-                return BadRequest(new { message = $"At most {BatchPartsMaxIds} part ids can be requested per call." });
+                throw new AppException(ErrorCodes.PartsBatchLimitExceeded, new { max = BatchPartsMaxIds });
             }
 
             var distinctIds = request.PartIds.Distinct().ToList();
@@ -150,7 +147,7 @@ namespace BikePartsTracker.Controllers
 
             if (!partExists)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             var history = await _context.PartUsageHistories
@@ -179,11 +176,6 @@ namespace BikePartsTracker.Controllers
         [HttpPost("batch/history")]
         public async Task<ActionResult<Dictionary<Guid, List<UsagePeriodDto>>>> BatchPartsHistory([FromBody] BatchPartIdsRequestDto request)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
             {
@@ -192,7 +184,7 @@ namespace BikePartsTracker.Controllers
 
             if (request.PartIds.Count > BatchPartsMaxIds)
             {
-                return BadRequest(new { message = $"At most {BatchPartsMaxIds} part ids can be requested per call." });
+                throw new AppException(ErrorCodes.PartsBatchLimitExceeded, new { max = BatchPartsMaxIds });
             }
 
             var distinctIds = request.PartIds.Distinct().ToList();
@@ -239,12 +231,6 @@ namespace BikePartsTracker.Controllers
         [HttpPost]
         public async Task<ActionResult<BikePartDto>> PostPart([FromBody] CreatePartDto createPartDto)
         {
-            Console.WriteLine("PostPart called");
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             // Get current user from JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
@@ -260,7 +246,7 @@ namespace BikePartsTracker.Controllers
 
                 if (bike == null)
                 {
-                    return BadRequest("Bike not found or does not belong to the current user");
+                    throw new AppException(ErrorCodes.BikesNotFound);
                 }
             }
 
@@ -304,11 +290,6 @@ namespace BikePartsTracker.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<object>> PutPart(Guid id, [FromBody] UpdatePartDto updatePartDto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             // Get current user from JWT token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
@@ -320,12 +301,12 @@ namespace BikePartsTracker.Controllers
 
             if (part == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             if (part.UserId != userId)
             {
-                return Forbid();
+                throw AppException.Forbidden();
             }
 
             var affectedChainCycles = new List<ChainCycleResponseDto>();
@@ -344,7 +325,7 @@ namespace BikePartsTracker.Controllers
                         .FirstOrDefaultAsync(b => b.Id == updatePartDto.BikeId.Value && b.UserId == userId);
 
                     if (newBike == null)
-                        return BadRequest("Bike not found or does not belong to the current user");
+                        throw new AppException(ErrorCodes.BikesNotFound);
 
                     part.BikeId = updatePartDto.BikeId.Value;
                 }
@@ -399,7 +380,7 @@ namespace BikePartsTracker.Controllers
             {
                 if (!PartExists(id))
                 {
-                    return NotFound();
+                    throw AppException.NotFound();
                 }
                 else
                 {
@@ -444,12 +425,12 @@ namespace BikePartsTracker.Controllers
 
             if (part == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             if (part.UserId != userId)
             {
-                return Forbid();
+                throw AppException.Forbidden();
             }
 
             var affectedChainCycles = new List<ChainCycleResponseDto>();

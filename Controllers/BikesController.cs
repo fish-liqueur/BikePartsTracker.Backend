@@ -4,7 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using BikePartsTracker.Data;
 using BikePartsTracker.Models;
 using BikePartsTracker.DTOs;
+using BikePartsTracker.Exceptions;
 using BikePartsTracker.Extensions;
+using BikePartsTracker.Localization;
 
 namespace BikePartsTracker.Controllers
 {
@@ -50,7 +52,7 @@ namespace BikePartsTracker.Controllers
 
             if (bike == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             return Ok(MapToDto(bike));
@@ -68,7 +70,8 @@ namespace BikePartsTracker.Controllers
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
             {
-                return BadRequest("User not found");
+                // Authenticated but the user row is missing — an invariant violation, not client error.
+                throw new AppException(ErrorCodes.CommonUnexpected);
             }
 
             var now = DateTime.UtcNow;
@@ -98,11 +101,6 @@ namespace BikePartsTracker.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<BikeDto>> PutBike(Guid id, [FromBody] UpdateBikeDto updateBikeDto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             if (!User.TryGetUserId(out var userId))
             {
                 return Unauthorized();
@@ -113,12 +111,12 @@ namespace BikePartsTracker.Controllers
 
             if (bike == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             if (bike.UserId != userId)
             {
-                return Forbid();
+                throw AppException.Forbidden();
             }
 
             if (updateBikeDto.Name != null)
@@ -152,7 +150,7 @@ namespace BikePartsTracker.Controllers
             {
                 if (!BikeExists(id))
                 {
-                    return NotFound();
+                    throw AppException.NotFound();
                 }
                 else
                 {
@@ -177,7 +175,7 @@ namespace BikePartsTracker.Controllers
 
             if (bike == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             _context.Bikes.Remove(bike);
@@ -195,103 +193,90 @@ namespace BikePartsTracker.Controllers
         [ProducesResponseType(401)]
         public async Task<ActionResult> SyncBikes([FromBody] SyncBikesRequestDto request)
         {
-            if (!ModelState.IsValid)
+            if (!User.TryGetUserId(out var userId))
             {
-                return BadRequest(new { message = "Invalid request data" });
+                return Unauthorized();
             }
 
-            try
+            var stravaBikeIds = request.Bikes
+                .Where(b => !string.IsNullOrEmpty(b.StravaBikeId))
+                .Select(b => b.StravaBikeId!)
+                .ToList();
+
+            var duplicateStravaIds = stravaBikeIds
+                .GroupBy(id => id)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+
+            if (duplicateStravaIds.Any())
             {
-                if (!User.TryGetUserId(out var userId))
-                {
-                    return Unauthorized();
-                }
-
-                var stravaBikeIds = request.Bikes
-                    .Where(b => !string.IsNullOrEmpty(b.StravaBikeId))
-                    .Select(b => b.StravaBikeId!)
-                    .ToList();
-
-                var duplicateStravaIds = stravaBikeIds
-                    .GroupBy(id => id)
-                    .Where(g => g.Count() > 1)
-                    .Select(g => g.Key)
-                    .ToList();
-
-                if (duplicateStravaIds.Any())
-                {
-                    return BadRequest(new { message = $"Duplicate Strava bike IDs found: {string.Join(", ", duplicateStravaIds)}" });
-                }
-
-                var existingBikes = await _context.Bikes
-                    .Where(b => b.UserId == userId)
-                    .ToListAsync();
-
-                var user = await _context.Users.FindAsync(userId);
-                if (user == null)
-                {
-                    return Unauthorized();
-                }
-
-                foreach (var bikeDto in request.Bikes)
-                {
-                    Bike? bike = null;
-
-                    if (bikeDto.Id.HasValue)
-                    {
-                        bike = existingBikes.FirstOrDefault(b => b.Id == bikeDto.Id.Value);
-                    }
-
-                    if (bike == null && !string.IsNullOrEmpty(bikeDto.StravaBikeId))
-                    {
-                        bike = existingBikes.FirstOrDefault(b => b.StravaBikeId == bikeDto.StravaBikeId);
-                    }
-
-                    if (bike != null)
-                    {
-                        bike.Name = bikeDto.Name;
-                        bike.Type = bikeDto.Type?.ToString() ?? string.Empty;
-                        bike.TotalDistance = bikeDto.TotalDistance;
-                        bike.StravaDistance = bikeDto.StravaDistance;
-                        bike.StravaBikeId = bikeDto.StravaBikeId;
-                        bike.IsActive = bikeDto.IsActive;
-                        bike.UpdatedAt = DateTime.UtcNow;
-                    }
-                    else
-                    {
-                        var now = DateTime.UtcNow;
-                        bike = new Bike
-                        {
-                            Id = Guid.NewGuid(),
-                            UserId = userId,
-                            User = user,
-                            Name = bikeDto.Name,
-                            Description = string.Empty,
-                            Type = bikeDto.Type?.ToString() ?? string.Empty,
-                            TotalDistance = bikeDto.TotalDistance,
-                            StravaDistance = bikeDto.StravaDistance,
-                            StravaBikeId = bikeDto.StravaBikeId,
-                            IsActive = bikeDto.IsActive,
-                            CreatedAt = now,
-                            UpdatedAt = now
-                        };
-                        _context.Bikes.Add(bike);
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-
-                return Ok(new { message = "Bikes synced successfully" });
+                throw new AppException(
+                    ErrorCodes.BikesDuplicateStravaId,
+                    new { ids = string.Join(", ", duplicateStravaIds) });
             }
-            catch (DbUpdateException dbEx)
+
+            var existingBikes = await _context.Bikes
+                .Where(b => b.UserId == userId)
+                .ToListAsync();
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
             {
-                var innerMessage = dbEx.InnerException?.Message ?? dbEx.Message;
-                return StatusCode(500, new { message = $"Database error: {innerMessage}" });
+                return Unauthorized();
             }
-            catch (Exception ex)
+
+            foreach (var bikeDto in request.Bikes)
             {
-                return StatusCode(500, new { message = $"An error occurred: {ex.Message}" });
+                Bike? bike = null;
+
+                if (bikeDto.Id.HasValue)
+                {
+                    bike = existingBikes.FirstOrDefault(b => b.Id == bikeDto.Id.Value);
+                }
+
+                if (bike == null && !string.IsNullOrEmpty(bikeDto.StravaBikeId))
+                {
+                    bike = existingBikes.FirstOrDefault(b => b.StravaBikeId == bikeDto.StravaBikeId);
+                }
+
+                if (bike != null)
+                {
+                    bike.Name = bikeDto.Name;
+                    bike.Type = bikeDto.Type?.ToString() ?? string.Empty;
+                    bike.TotalDistance = bikeDto.TotalDistance;
+                    bike.StravaDistance = bikeDto.StravaDistance;
+                    bike.StravaBikeId = bikeDto.StravaBikeId;
+                    bike.IsActive = bikeDto.IsActive;
+                    bike.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    var now = DateTime.UtcNow;
+                    bike = new Bike
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = userId,
+                        User = user,
+                        Name = bikeDto.Name,
+                        Description = string.Empty,
+                        Type = bikeDto.Type?.ToString() ?? string.Empty,
+                        TotalDistance = bikeDto.TotalDistance,
+                        StravaDistance = bikeDto.StravaDistance,
+                        StravaBikeId = bikeDto.StravaBikeId,
+                        IsActive = bikeDto.IsActive,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
+                    _context.Bikes.Add(bike);
+                }
             }
+
+            // A DB failure here bubbles to the global handler as COMMON_UNEXPECTED — we no longer
+            // leak the raw provider/exception message to the client (ADR 0006 §E1).
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Bikes synced successfully" });
         }
 
         private bool BikeExists(Guid id)

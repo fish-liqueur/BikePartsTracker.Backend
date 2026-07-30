@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AUTH_INVALID_CREDENTIALS" xml:space="preserve">
+    <value>Ungültige E-Mail-Adresse oder ungültiges Passwort.</value>
+  </data>
+  <data name="AUTH_EMAIL_TAKEN" xml:space="preserve">
+    <value>Es existiert bereits ein Konto mit dieser E-Mail-Adresse.</value>
+  </data>
+  <data name="RIDES_ENDDATE_BEFORE_STARTDATE" xml:space="preserve">
+    <value>Das Enddatum muss am oder nach dem Startdatum liegen.</value>
+  </data>
+  <data name="RIDES_STRAVA_NOT_CONNECTED" xml:space="preserve">
+    <value>Verbinde dein Strava-Konto, bevor du Fahrten importierst.</value>
+  </data>
+  <data name="BIKES_DUPLICATE_STRAVA_ID" xml:space="preserve">
+    <value>Dasselbe Strava-Fahrrad kommt mehrfach vor: {ids}.</value>
+  </data>
+  <data name="BIKES_NOT_FOUND" xml:space="preserve">
+    <value>Fahrrad nicht gefunden oder gehört nicht dir.</value>
+  </data>
+  <data name="PARTS_BATCH_LIMIT_EXCEEDED" xml:space="preserve">
+    <value>Du kannst höchstens {max} Teile-IDs pro Anfrage abrufen.</value>
+  </data>
+  <data name="COMMON_NOT_FOUND" xml:space="preserve">
+    <value>Die angeforderte Ressource wurde nicht gefunden.</value>
+  </data>
+  <data name="COMMON_FORBIDDEN" xml:space="preserve">
+    <value>Du hast keinen Zugriff auf diese Ressource.</value>
+  </data>
+  <data name="COMMON_VALIDATION" xml:space="preserve">
+    <value>Es sind ein oder mehrere Validierungsfehler aufgetreten.</value>
+  </data>
+  <data name="COMMON_UNEXPECTED" xml:space="preserve">
+    <value>Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.</value>
+  </data>
+</root>

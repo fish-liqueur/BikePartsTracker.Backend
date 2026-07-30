@@ -1,6 +1,8 @@
 using BikePartsTracker.Data;
 using BikePartsTracker.DTOs;
+using BikePartsTracker.Exceptions;
 using BikePartsTracker.Extensions;
+using BikePartsTracker.Localization;
 using BikePartsTracker.Models;
 using BikePartsTracker.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -41,7 +43,7 @@ namespace BikePartsTracker.Controllers
 
             if (request.EndDate < request.StartDate)
             {
-                return BadRequest(new { message = "EndDate must be greater than or equal to StartDate." });
+                throw new AppException(ErrorCodes.RidesEndDateBeforeStartDate);
             }
 
             try
@@ -64,14 +66,13 @@ namespace BikePartsTracker.Controllers
                     Affected = importResult.Affected
                 });
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
-                return BadRequest(new { message = ex.Message });
+                // The import service throws this when Strava isn't connected or no token is available.
+                throw new AppException(ErrorCodes.RidesStravaNotConnected);
             }
-            catch (HttpRequestException ex)
-            {
-                return StatusCode(500, new { message = $"Failed to fetch Strava activities: {ex.Message}" });
-            }
+            // HttpRequestException (an upstream Strava failure) is left to bubble to the global handler,
+            // which logs it and returns COMMON_UNEXPECTED (500) without leaking the raw message.
         }
 
         [HttpGet]
@@ -112,7 +113,7 @@ namespace BikePartsTracker.Controllers
             var ride = await _context.Rides.FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
             if (ride == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             return Ok(MapToDto(ride));
@@ -131,7 +132,7 @@ namespace BikePartsTracker.Controllers
                 var bikeOk = await _context.Bikes.AnyAsync(b => b.Id == dto.BikeId.Value && b.UserId == userId);
                 if (!bikeOk)
                 {
-                    return BadRequest(new { message = "Bike not found or does not belong to the current user." });
+                    throw new AppException(ErrorCodes.BikesNotFound);
                 }
             }
 
@@ -187,7 +188,7 @@ namespace BikePartsTracker.Controllers
             var ride = await _context.Rides.FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
             if (ride == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             var oldBikeId = ride.BikeId;
@@ -203,7 +204,7 @@ namespace BikePartsTracker.Controllers
                     var bikeOk = await _context.Bikes.AnyAsync(b => b.Id == nextBike && b.UserId == userId);
                     if (!bikeOk)
                     {
-                        return BadRequest(new { message = "Bike not found or does not belong to the current user." });
+                        throw new AppException(ErrorCodes.BikesNotFound);
                     }
 
                     ride.BikeId = nextBike;
@@ -287,7 +288,7 @@ namespace BikePartsTracker.Controllers
             var ride = await _context.Rides.FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
             if (ride == null)
             {
-                return NotFound();
+                throw AppException.NotFound();
             }
 
             var startDate = ride.StartDateLocal;
