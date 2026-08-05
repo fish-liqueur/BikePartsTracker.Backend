@@ -1,5 +1,7 @@
 using BikePartsTracker.Data;
 using BikePartsTracker.Services;
+using BikePartsTracker.BackgroundJobs;
+using BikePartsTracker.Hubs;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -19,6 +21,13 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.PayloadSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
 // Localization (ADR 0006): backend error-message catalog + culture resolution.
@@ -96,6 +105,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? "your-super-secret-key-with-at-least-32-characters"))
         };
+
+        // SignalR JS client sends the JWT as access_token query string.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments(UpdatesHub.HubPath))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -115,6 +141,16 @@ builder.Services.AddScoped<IMaintenanceTaskShadowPeriodService, MaintenanceTaskS
 builder.Services.AddScoped<IPartUsageTrackingService, PartUsageTrackingService>();
 builder.Services.AddScoped<IRideMutationResolver, RideMutationResolver>();
 builder.Services.AddScoped<IRideImportService, RideImportService>();
+builder.Services.AddScoped<IGapFillScheduler, GapFillScheduler>();
+builder.Services.AddScoped<IBackgroundJobHandler, BackgroundJobHandler>();
+builder.Services.AddSingleton<IBackgroundJobQueue, ChannelBackgroundJobQueue>();
+builder.Services.AddSingleton<IRealtimeNotifier, SignalRRealtimeNotifier>();
+
+// In-process worker (ADR-0001 MVP). Disabled in Testing so integration tests drain the queue explicitly.
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<BackgroundJobWorker>();
+}
 
 // Register EF Core with PostgreSQL
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -194,6 +230,7 @@ if (!isRunningInContainer)
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<UpdatesHub>(UpdatesHub.HubPath);
 
 app.Run();
 

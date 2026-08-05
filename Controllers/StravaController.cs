@@ -110,6 +110,24 @@ namespace BikePartsTracker.Controllers
                     return Unauthorized();
                 }
 
+                var serviceUserId = tokenResponse.Athlete?.Id.ToString() ?? string.Empty;
+                if (!string.IsNullOrEmpty(serviceUserId))
+                {
+                    // One Strava athlete → one app user (webhook owner_id mapping; ADR 0003).
+                    var athleteTaken = await _context.ExternalServiceIntegrations.AnyAsync(i =>
+                        i.ServiceType == ExternalServiceType.Strava &&
+                        i.ServiceUserId == serviceUserId &&
+                        i.UserId != userId);
+                    if (athleteTaken)
+                    {
+                        return BadRequest(new StravaAuthResponseDto
+                        {
+                            Success = false,
+                            Message = "This Strava account is already connected to another BikePartsTracker user."
+                        });
+                    }
+                }
+
                 // Find existing Strava integration or create new one
                 var integration = await _context.ExternalServiceIntegrations
                     .Include(i => i.StravaAthlete)
@@ -124,7 +142,7 @@ namespace BikePartsTracker.Controllers
                         User = user,
                         UserId = userId,
                         ServiceType = ExternalServiceType.Strava,
-                        ServiceUserId = tokenResponse.Athlete?.Id.ToString() ?? string.Empty,
+                        ServiceUserId = serviceUserId,
                         AccessToken = tokenResponse.AccessToken,
                         RefreshToken = tokenResponse.RefreshToken,
                         TokenExpiry = DateTimeOffset.FromUnixTimeSeconds(tokenResponse.ExpiresAt).UtcDateTime,
@@ -136,7 +154,7 @@ namespace BikePartsTracker.Controllers
                 else
                 {
                     // Update existing integration
-                    integration.ServiceUserId = tokenResponse.Athlete?.Id.ToString() ?? string.Empty;
+                    integration.ServiceUserId = serviceUserId;
                     integration.AccessToken = tokenResponse.AccessToken;
                     integration.RefreshToken = tokenResponse.RefreshToken;
                     integration.TokenExpiry = DateTimeOffset.FromUnixTimeSeconds(tokenResponse.ExpiresAt).UtcDateTime;
@@ -369,7 +387,6 @@ namespace BikePartsTracker.Controllers
 
                 // Ensure token is valid (refresh if needed)
                 var accessToken = await _stravaIntegrationService.EnsureValidAccessTokenAsync(integration);
-                Console.WriteLine("GetAthlete AccessToken: {0}", accessToken);
                 if (string.IsNullOrEmpty(accessToken))
                 {
                     // Provide more detailed error information

@@ -2,6 +2,7 @@ using BikePartsTracker.Data;
 using BikePartsTracker.DTOs;
 using BikePartsTracker.Exceptions;
 using BikePartsTracker.Extensions;
+using BikePartsTracker.Hubs;
 using BikePartsTracker.Localization;
 using BikePartsTracker.Models;
 using BikePartsTracker.Services;
@@ -20,17 +21,20 @@ namespace BikePartsTracker.Controllers
         private readonly IRideImportService _rideImportService;
         private readonly IUsagePeriodDistanceService _usagePeriodDistanceService;
         private readonly IRideMutationResolver _mutationResolver;
+        private readonly IRealtimeNotifier _realtimeNotifier;
 
         public RidesController(
             AppDbContext context,
             IRideImportService rideImportService,
             IUsagePeriodDistanceService usagePeriodDistanceService,
-            IRideMutationResolver mutationResolver)
+            IRideMutationResolver mutationResolver,
+            IRealtimeNotifier realtimeNotifier)
         {
             _context = context;
             _rideImportService = rideImportService;
             _usagePeriodDistanceService = usagePeriodDistanceService;
             _mutationResolver = mutationResolver;
+            _realtimeNotifier = realtimeNotifier;
         }
 
         [HttpPost("import/strava")]
@@ -57,6 +61,8 @@ namespace BikePartsTracker.Controllers
                     .OrderByDescending(r => r.StartDateLocal)
                     .ToListAsync();
                 var rideDtos = ridesInRange.Select(MapToDto).ToList();
+
+                await _realtimeNotifier.NotifyEntitiesAffectedAsync(userId, importResult.Affected);
 
                 return Ok(new ImportStravaRidesResponseDto
                 {
@@ -168,6 +174,8 @@ namespace BikePartsTracker.Controllers
                 partIds: affectedPartIds,
                 bikeIds: new[] { ride.BikeId });
 
+            await _realtimeNotifier.NotifyEntitiesAffectedAsync(userId, affected);
+
             var response = new RideMutationResponseDto
             {
                 Ride = MapToDto(ride),
@@ -270,6 +278,8 @@ namespace BikePartsTracker.Controllers
                 partIds: affectedPartIds,
                 bikeIds: new[] { oldBikeId, ride.BikeId });
 
+            await _realtimeNotifier.NotifyEntitiesAffectedAsync(userId, affected);
+
             return Ok(new RideMutationResponseDto
             {
                 Ride = MapToDto(ride),
@@ -305,6 +315,8 @@ namespace BikePartsTracker.Controllers
                 rideIds: new[] { rideId },
                 partIds: affectedPartIds,
                 bikeIds: new[] { bikeId });
+
+            await _realtimeNotifier.NotifyEntitiesAffectedAsync(userId, affected);
 
             return Ok(affected);
         }

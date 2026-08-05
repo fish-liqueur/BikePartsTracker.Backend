@@ -17,15 +17,18 @@ namespace BikePartsTracker.Controllers
         private readonly AppDbContext _context;
         private readonly IUsagePeriodDistanceService _usagePeriodDistanceService;
         private readonly IMaintenanceTaskShadowPeriodService _maintenanceTaskShadowPeriodService;
+        private readonly IGapFillScheduler _gapFillScheduler;
 
         public UsagePeriodsController(
             AppDbContext context,
             IUsagePeriodDistanceService usagePeriodDistanceService,
-            IMaintenanceTaskShadowPeriodService maintenanceTaskShadowPeriodService)
+            IMaintenanceTaskShadowPeriodService maintenanceTaskShadowPeriodService,
+            IGapFillScheduler gapFillScheduler)
         {
             _context = context;
             _usagePeriodDistanceService = usagePeriodDistanceService;
             _maintenanceTaskShadowPeriodService = maintenanceTaskShadowPeriodService;
+            _gapFillScheduler = gapFillScheduler;
         }
 
         [HttpPost]
@@ -75,6 +78,9 @@ namespace BikePartsTracker.Controllers
             await _context.SaveChangesAsync();
 
             await _maintenanceTaskShadowPeriodService.SyncShadowPeriodsForPartAsync(dto.BikePartId);
+
+            // ADR-0001: past-dated real usage period → enqueue silent gap-fill (non-blocking).
+            await _gapFillScheduler.ScheduleIfNeededAsync(userId, dto.StartDate);
 
             return CreatedAtAction("GetPartHistory", "Parts", new { id = dto.BikePartId }, MapToDto(period));
         }
@@ -135,6 +141,9 @@ namespace BikePartsTracker.Controllers
             await _context.SaveChangesAsync();
 
             await _maintenanceTaskShadowPeriodService.SyncShadowPeriodsForPartAsync(period.BikePartId);
+
+            // ADR-0001: past StartDate (incl. edit) → enqueue silent gap-fill (non-blocking).
+            await _gapFillScheduler.ScheduleIfNeededAsync(userId, period.StartDate);
 
             return Ok(MapToDto(period));
         }

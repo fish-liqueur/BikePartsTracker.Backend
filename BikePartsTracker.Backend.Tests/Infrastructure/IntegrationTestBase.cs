@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BikePartsTracker.BackgroundJobs;
 using BikePartsTracker.Data;
 using BikePartsTracker.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,11 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await DatabaseReset.TruncateAsync(Fixture.Factory.Services);
+        Fixture.Factory.FakeStrava.Reset();
+        // Drain any leftover jobs from a prior test (queue is singleton).
+        while (Fixture.Factory.Services.GetRequiredService<IBackgroundJobQueue>().TryDequeue(out _))
+        {
+        }
         Client = Fixture.Factory.CreateClient();
     }
 

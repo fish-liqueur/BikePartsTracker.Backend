@@ -51,6 +51,18 @@ namespace BikePartsTracker.Models
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         /// <summary>
+        /// Start of the contiguous UTC date range successfully covered by automatic import (gap-fill / webhooks).
+        /// Internal watermark — not exposed on rider-facing DTOs.
+        /// </summary>
+        public DateTime? AutoImportCoveredFrom { get; set; }
+
+        /// <summary>
+        /// End of the contiguous UTC date range successfully covered by automatic import.
+        /// Internal watermark — not exposed on rider-facing DTOs.
+        /// </summary>
+        public DateTime? AutoImportCoveredTo { get; set; }
+
+        /// <summary>
         /// Navigation property to service-specific athlete/profile data
         /// </summary>
         public StravaAthlete? StravaAthlete { get; set; }

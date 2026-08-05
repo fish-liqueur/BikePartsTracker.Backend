@@ -1,15 +1,23 @@
+using BikePartsTracker.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace BikePartsTracker.Backend.Tests.Infrastructure;
 
 public sealed class BikePartsTrackerWebApplicationFactory : WebApplicationFactory<Program>
 {
+    public const string WebhookVerifyToken = "test-webhook-verify-token";
+
     private readonly string _connectionString;
     private readonly string _jwtKey;
     private readonly string _jwtIssuer;
     private readonly string _jwtAudience;
+
+    public FakeStravaService FakeStrava { get; } = new();
 
     public BikePartsTrackerWebApplicationFactory(
         string connectionString,
@@ -34,7 +42,16 @@ public sealed class BikePartsTrackerWebApplicationFactory : WebApplicationFactor
                 ["Jwt:Key"] = _jwtKey,
                 ["Jwt:Issuer"] = _jwtIssuer,
                 ["Jwt:Audience"] = _jwtAudience,
+                ["Strava:WebhookVerifyToken"] = WebhookVerifyToken,
+                ["Strava:ClientId"] = "test-client-id",
+                ["Strava:ClientSecret"] = "test-client-secret",
             });
+        });
+
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IStravaService>();
+            services.AddSingleton<IStravaService>(FakeStrava);
         });
     }
 }

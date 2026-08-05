@@ -105,6 +105,12 @@ namespace BikePartsTracker.Data
                 .HasIndex(e => new { e.UserId, e.ServiceType })
                 .IsUnique();
 
+            // Webhook owner_id → integration lookup (one athlete → one app user; empty ids excluded)
+            modelBuilder.Entity<ExternalServiceIntegration>()
+                .HasIndex(e => new { e.ServiceType, e.ServiceUserId })
+                .IsUnique()
+                .HasFilter("\"ServiceUserId\" <> ''");
+
             modelBuilder.Entity<Ride>()
                 .HasIndex(r => new { r.UserId, r.StravaActivityId })
                 .IsUnique()

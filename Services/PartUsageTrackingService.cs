@@ -15,15 +15,18 @@ namespace BikePartsTracker.Services
         private readonly AppDbContext _context;
         private readonly IUsagePeriodDistanceService _distanceService;
         private readonly IMaintenanceTaskShadowPeriodService _shadowService;
+        private readonly IGapFillScheduler _gapFillScheduler;
 
         public PartUsageTrackingService(
             AppDbContext context,
             IUsagePeriodDistanceService distanceService,
-            IMaintenanceTaskShadowPeriodService shadowService)
+            IMaintenanceTaskShadowPeriodService shadowService,
+            IGapFillScheduler gapFillScheduler)
         {
             _context = context;
             _distanceService = distanceService;
             _shadowService = shadowService;
+            _gapFillScheduler = gapFillScheduler;
         }
 
         public async Task OpenUsagePeriodAsync(BikePart part, Guid bikeId, DateTime startDate)
@@ -58,6 +61,9 @@ namespace BikePartsTracker.Services
             await _context.SaveChangesAsync();
 
             await _shadowService.SyncShadowPeriodsForPartAsync(part.Id);
+
+            // ADR-0001: past-dated real usage period → enqueue silent gap-fill (non-blocking).
+            await _gapFillScheduler.ScheduleIfNeededAsync(part.UserId, startDate);
         }
 
         public async Task CloseOpenUsagePeriodsAsync(Guid bikePartId, DateTime endDate)

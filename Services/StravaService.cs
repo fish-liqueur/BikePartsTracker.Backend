@@ -18,6 +18,8 @@ namespace BikePartsTracker.Services
             long? after = null,
             int page = 1,
             int perPage = 30);
+
+        Task<StravaActivityDto?> GetActivityAsync(string accessToken, long activityId);
     }
 
     public class StravaService : IStravaService
@@ -254,6 +256,31 @@ namespace BikePartsTracker.Services
             });
 
             return activities ?? new List<StravaActivityDto>();
+        }
+
+        public async Task<StravaActivityDto?> GetActivityAsync(string accessToken, long activityId)
+        {
+            var url = $"https://www.strava.com/api/v3/activities/{activityId}";
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+            var response = await _httpClient.SendAsync(request);
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Strava API error: {response.StatusCode} - {errorContent}");
+            }
+
+            var jsonContent = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<StravaActivityDto>(jsonContent, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
         }
     }
 
