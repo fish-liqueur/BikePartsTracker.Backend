@@ -60,7 +60,7 @@ public class UserSettingsLanguageTests : IntegrationTestBase
         var seed = await Client.PutAsJsonAsync("/api/users/settings", new UpdateUserSettingsDto
         {
             DefaultChainCycleLength = 2,
-            DefaultChainCycleIntervalKm = 555,
+            DefaultChainCycleIntervalMetres = 555_000,
             showTips = false
         });
         Assert.Equal(HttpStatusCode.OK, seed.StatusCode);
@@ -73,7 +73,7 @@ public class UserSettingsLanguageTests : IntegrationTestBase
         Assert.NotNull(updated);
         Assert.Equal("ru", updated!.Language);
         Assert.Equal(2, updated.DefaultChainCycleLength);
-        Assert.Equal(555, updated.DefaultChainCycleIntervalKm);
+        Assert.Equal(555_000, updated.DefaultChainCycleIntervalMetres);
         Assert.False(updated.showTips);
     }
 

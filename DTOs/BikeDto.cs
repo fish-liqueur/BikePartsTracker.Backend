@@ -10,10 +10,12 @@ namespace BikePartsTracker.DTOs
         public string Description { get; set; } = string.Empty;
         public BikeType Type { get; set; }
         public List<BikePartDto> Parts { get; set; } = new List<BikePartDto>();
+        /// <summary>Rider-tracked total distance in metres.</summary>
         public double TotalDistance { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public string? StravaId { get; set; }
+        /// <summary>Strava gear distance in metres.</summary>
         public double? StravaDistance { get; set; }
         public bool? IsActive { get; set; }
     }

@@ -17,9 +17,9 @@ namespace BikePartsTracker.Models
         public int DefaultChainCycleLength { get; set; } = 3;
 
         /// <summary>
-        /// Default chain cycle interval in kilometers
+        /// Default chain cycle interval in metres (ADR 0002). Default 700 km → 700_000 m.
         /// </summary>
-        public int DefaultChainCycleIntervalKm { get; set; } = 700;
+        public int DefaultChainCycleIntervalMetres { get; set; } = 700_000;
 
         /// <summary>
         /// Whether to use the chain cycle by default
@@ -39,6 +39,14 @@ namespace BikePartsTracker.Models
         /// </summary>
         [MaxLength(16)]
         public string? Language { get; set; }
+
+        /// <summary>
+        /// Preferred distance display unit: "km" or "mi". Null means no explicit choice —
+        /// the client resolves from browser locale, else kilometres (ADR 0002 Decision B).
+        /// Inference never writes this column.
+        /// </summary>
+        [MaxLength(8)]
+        public string? DistanceUnit { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

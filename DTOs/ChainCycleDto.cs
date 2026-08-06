@@ -12,7 +12,8 @@ namespace BikePartsTracker.DTOs
         /// </summary>
         public List<Guid?> Chains { get; set; } = new();
         public Guid? ActiveChainId { get; set; }
-        public double? IntervalKm { get; set; }
+        /// <summary>Rotation interval in metres.</summary>
+        public double? IntervalMetres { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
@@ -29,13 +30,15 @@ namespace BikePartsTracker.DTOs
         public List<Guid?>? Chains { get; set; }
 
         public Guid? ActiveChainId { get; set; }
-        public double? IntervalKm { get; set; }
+        /// <summary>Rotation interval in metres.</summary>
+        public double? IntervalMetres { get; set; }
     }
 
     public class UpdateChainCycleDto
     {
         public List<Guid?>? Chains { get; set; }
         public Guid? ActiveChainId { get; set; }
-        public double? IntervalKm { get; set; }
+        /// <summary>Rotation interval in metres.</summary>
+        public double? IntervalMetres { get; set; }
     }
 }

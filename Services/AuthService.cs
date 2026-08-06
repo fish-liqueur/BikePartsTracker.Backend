@@ -48,19 +48,12 @@ namespace BikePartsTracker.Services
             var token = GenerateJwtToken(user);
             var refreshToken = GenerateRefreshToken();
 
-
             return new AuthResponseDto
             {
                 Success = true,
                 Token = token,
                 RefreshToken = refreshToken,
-                User = new UserDto
-                {
-                    Id = user.Id,
-                    Name = user.Name,
-                    Email = user.Email,
-                    CreatedAt = user.CreatedAt
-                }
+                User = await MapUserDtoAsync(user)
             };
         }
 
@@ -96,13 +89,30 @@ namespace BikePartsTracker.Services
                 Success = true,
                 Token = token,
                 RefreshToken = refreshToken,
-                User = new UserDto
-                {
-                    Id = user.Id,
-                    Name = user.Name,
-                    Email = user.Email,
-                    CreatedAt = user.CreatedAt
-                }
+                User = await MapUserDtoAsync(user)
+            };
+        }
+
+        /// <summary>
+        /// Auth envelope defaults: load settings when present; otherwise model defaults
+        /// (length 3, interval 700_000 m) so the wire field is metres-aligned (ADR 0002 E2).
+        /// </summary>
+        private async Task<UserDto> MapUserDtoAsync(User user)
+        {
+            var settings = await _context.UserSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.UserId == user.Id);
+
+            return new UserDto
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Email = user.Email ?? string.Empty,
+                CreatedAt = user.CreatedAt,
+                DefaultChainCycleLength = settings?.DefaultChainCycleLength
+                    ?? new UserSettings().DefaultChainCycleLength,
+                DefaultChainCycleInterval = settings?.DefaultChainCycleIntervalMetres
+                    ?? new UserSettings().DefaultChainCycleIntervalMetres
             };
         }
 

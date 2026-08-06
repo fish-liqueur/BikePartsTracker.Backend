@@ -81,7 +81,7 @@ namespace BikePartsTracker.Controllers
                 BikeId = dto.BikeId,
                 Chains = dto.Chains ?? new List<Guid?>(),
                 ActiveChainId = dto.ActiveChainId,
-                IntervalKm = dto.IntervalKm,
+                IntervalMetres = dto.IntervalMetres,
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -126,8 +126,8 @@ namespace BikePartsTracker.Controllers
             if (dto.ActiveChainId.HasValue)
                 cycle.ActiveChainId = dto.ActiveChainId.Value == Guid.Empty ? null : dto.ActiveChainId.Value;
 
-            if (dto.IntervalKm.HasValue)
-                cycle.IntervalKm = dto.IntervalKm.Value;
+            if (dto.IntervalMetres.HasValue)
+                cycle.IntervalMetres = dto.IntervalMetres.Value;
 
             var now = DateTime.UtcNow;
             cycle.UpdatedAt = now;
@@ -194,7 +194,7 @@ namespace BikePartsTracker.Controllers
             BikeId = cycle.BikeId,
             Chains = cycle.Chains,
             ActiveChainId = cycle.ActiveChainId,
-            IntervalKm = cycle.IntervalKm,
+            IntervalMetres = cycle.IntervalMetres,
             CreatedAt = cycle.CreatedAt,
             UpdatedAt = cycle.UpdatedAt
         };

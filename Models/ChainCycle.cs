@@ -55,9 +55,9 @@ namespace BikePartsTracker.Models
         public Guid? ActiveChainId { get; set; }
 
         /// <summary>
-        /// Distance in km between chain swaps within this cycle.
+        /// Distance in metres between chain swaps within this cycle (ADR 0002).
         /// </summary>
-        public double? IntervalKm { get; set; }
+        public double? IntervalMetres { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

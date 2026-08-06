@@ -20,10 +20,13 @@ namespace BikePartsTracker.Models
 
         public string Type { get; set; } = string.Empty;
 
-        public double TotalDistance { get; set; } // in km
+        /// <summary>
+        /// Rider-tracked total distance in metres (ADR 0002).
+        /// </summary>
+        public double TotalDistance { get; set; }
 
         /// <summary>
-        /// Distance from Strava in meters
+        /// Distance from Strava in metres.
         /// </summary>
         public double StravaDistance { get; set; }
 

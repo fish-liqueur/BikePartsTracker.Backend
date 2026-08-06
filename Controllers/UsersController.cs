@@ -49,21 +49,14 @@ namespace BikePartsTracker.Controllers
                     UserId = userId,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
-                    // DefaultChainCycleLength and DefaultChainCycleIntervalKm 
+                    // DefaultChainCycleLength and DefaultChainCycleIntervalMetres
                     // will use their default values from the model
                 };
                 _context.UserSettings.Add(settings);
                 await _context.SaveChangesAsync();
             }
 
-            return Ok(new UserSettingsDto
-            {
-                DefaultChainCycleLength = settings.DefaultChainCycleLength,
-                DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm,
-                defaultUseChainCycle = settings.defaultUseChainCycle,
-                showTips = settings.showTips,
-                Language = settings.Language
-            });
+            return Ok(MapToDto(settings));
         }
 
         /// <summary>
@@ -119,25 +112,30 @@ namespace BikePartsTracker.Controllers
 
             if (updateDto.DefaultChainCycleLength.HasValue)
                 settings.DefaultChainCycleLength = updateDto.DefaultChainCycleLength.Value;
-            if (updateDto.DefaultChainCycleIntervalKm.HasValue)
-                settings.DefaultChainCycleIntervalKm = updateDto.DefaultChainCycleIntervalKm.Value;
+            if (updateDto.DefaultChainCycleIntervalMetres.HasValue)
+                settings.DefaultChainCycleIntervalMetres = updateDto.DefaultChainCycleIntervalMetres.Value;
             if (updateDto.defaultUseChainCycle.HasValue)
                 settings.defaultUseChainCycle = updateDto.defaultUseChainCycle.Value;
             if (updateDto.showTips.HasValue)
                 settings.showTips = updateDto.showTips.Value;
             if (updateDto.Language != null)
                 settings.Language = updateDto.Language;
+            if (updateDto.DistanceUnitSpecified)
+                settings.DistanceUnit = updateDto.DistanceUnit;
 
             await _context.SaveChangesAsync();
 
-            return Ok(new UserSettingsDto
-            {
-                DefaultChainCycleLength = settings.DefaultChainCycleLength,
-                DefaultChainCycleIntervalKm = settings.DefaultChainCycleIntervalKm,
-                defaultUseChainCycle = settings.defaultUseChainCycle,
-                showTips = settings.showTips,
-                Language = settings.Language
-            });
+            return Ok(MapToDto(settings));
         }
+
+        private static UserSettingsDto MapToDto(UserSettings settings) => new()
+        {
+            DefaultChainCycleLength = settings.DefaultChainCycleLength,
+            DefaultChainCycleIntervalMetres = settings.DefaultChainCycleIntervalMetres,
+            defaultUseChainCycle = settings.defaultUseChainCycle,
+            showTips = settings.showTips,
+            Language = settings.Language,
+            DistanceUnit = settings.DistanceUnit
+        };
     }
 }

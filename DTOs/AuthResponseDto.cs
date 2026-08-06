@@ -16,7 +16,13 @@ namespace BikePartsTracker.DTOs
         public string Email { get; set; } = string.Empty;
         public string Username { get; set; } = string.Empty;
         public int DefaultChainCycleLength { get; set; }
+
+        /// <summary>
+        /// Default chain-cycle interval in metres (aligned with
+        /// <c>UserSettings.DefaultChainCycleIntervalMetres</c>, ADR 0002 E2).
+        /// </summary>
         public int DefaultChainCycleInterval { get; set; }
+
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }
