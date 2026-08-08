@@ -29,6 +29,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         await DatabaseReset.TruncateAsync(Fixture.Factory.Services);
         Fixture.Factory.FakeStrava.Reset();
+        Fixture.Factory.FillFaultInjector.Reset();
         // Drain any leftover jobs from a prior test (queue is singleton).
         while (Fixture.Factory.Services.GetRequiredService<IBackgroundJobQueue>().TryDequeue(out _))
         {

@@ -18,6 +18,10 @@ namespace BikePartsTracker.Localization
         /// <summary>A create/update referenced a bike that does not exist or is not owned by the caller (400).</summary>
         public const string BikesNotFound = "BIKES_NOT_FOUND";
         public const string PartsBatchLimitExceeded = "PARTS_BATCH_LIMIT_EXCEEDED";
+        /// <summary>Fill-empty-slots called when the cycle has no empty slots (400).</summary>
+        public const string ChainCyclesNoEmptySlots = "CHAIN_CYCLES_NO_EMPTY_SLOTS";
+        /// <summary>activeNewSlotIndex is out of range or addresses a slot that is already filled (400).</summary>
+        public const string ChainCyclesInvalidActiveSlot = "CHAIN_CYCLES_INVALID_ACTIVE_SLOT";
         public const string CommonNotFound = "COMMON_NOT_FOUND";
         public const string CommonForbidden = "COMMON_FORBIDDEN";
         public const string CommonValidation = "COMMON_VALIDATION";

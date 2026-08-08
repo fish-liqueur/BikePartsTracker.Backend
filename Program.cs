@@ -139,6 +139,7 @@ builder.Services.AddScoped<IUsagePeriodDistanceService, UsagePeriodDistanceServi
 builder.Services.AddScoped<IMaintenanceTaskEvaluationService, MaintenanceTaskEvaluationService>();
 builder.Services.AddScoped<IMaintenanceTaskShadowPeriodService, MaintenanceTaskShadowPeriodService>();
 builder.Services.AddScoped<IPartUsageTrackingService, PartUsageTrackingService>();
+builder.Services.AddScoped<IFillEmptySlotsFaultInjector, NullFillEmptySlotsFaultInjector>();
 builder.Services.AddScoped<IRideMutationResolver, RideMutationResolver>();
 builder.Services.AddScoped<IRideImportService, RideImportService>();
 builder.Services.AddScoped<IGapFillScheduler, GapFillScheduler>();

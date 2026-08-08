@@ -18,6 +18,7 @@ public sealed class BikePartsTrackerWebApplicationFactory : WebApplicationFactor
     private readonly string _jwtAudience;
 
     public FakeStravaService FakeStrava { get; } = new();
+    public ThrowAfterNPartsFaultInjector FillFaultInjector { get; } = new();
 
     public BikePartsTrackerWebApplicationFactory(
         string connectionString,
@@ -52,6 +53,8 @@ public sealed class BikePartsTrackerWebApplicationFactory : WebApplicationFactor
         {
             services.RemoveAll<IStravaService>();
             services.AddSingleton<IStravaService>(FakeStrava);
+            services.RemoveAll<IFillEmptySlotsFaultInjector>();
+            services.AddSingleton<IFillEmptySlotsFaultInjector>(FillFaultInjector);
         });
     }
 }

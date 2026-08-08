@@ -79,6 +79,12 @@
   <data name="PARTS_BATCH_LIMIT_EXCEEDED" xml:space="preserve">
     <value>You can request at most {max} part ids per call.</value>
   </data>
+  <data name="CHAIN_CYCLES_NO_EMPTY_SLOTS" xml:space="preserve">
+    <value>This chain cycle has no empty slots to fill.</value>
+  </data>
+  <data name="CHAIN_CYCLES_INVALID_ACTIVE_SLOT" xml:space="preserve">
+    <value>The selected slot is not a valid empty slot for activation.</value>
+  </data>
   <data name="COMMON_NOT_FOUND" xml:space="preserve">
     <value>The requested resource was not found.</value>
   </data>

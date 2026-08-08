@@ -79,6 +79,12 @@
   <data name="PARTS_BATCH_LIMIT_EXCEEDED" xml:space="preserve">
     <value>За один запрос можно запросить не более {max} идентификаторов деталей.</value>
   </data>
+  <data name="CHAIN_CYCLES_NO_EMPTY_SLOTS" xml:space="preserve">
+    <value>В этом цикле цепей нет пустых слотов для заполнения.</value>
+  </data>
+  <data name="CHAIN_CYCLES_INVALID_ACTIVE_SLOT" xml:space="preserve">
+    <value>Выбранный слот не является допустимым пустым слотом для активации.</value>
+  </data>
   <data name="COMMON_NOT_FOUND" xml:space="preserve">
     <value>Запрашиваемый ресурс не найден.</value>
   </data>

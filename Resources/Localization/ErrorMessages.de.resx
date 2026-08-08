@@ -79,6 +79,12 @@
   <data name="PARTS_BATCH_LIMIT_EXCEEDED" xml:space="preserve">
     <value>Du kannst höchstens {max} Teile-IDs pro Anfrage abrufen.</value>
   </data>
+  <data name="CHAIN_CYCLES_NO_EMPTY_SLOTS" xml:space="preserve">
+    <value>Dieser Kettenzyklus hat keine leeren Plätze zum Füllen.</value>
+  </data>
+  <data name="CHAIN_CYCLES_INVALID_ACTIVE_SLOT" xml:space="preserve">
+    <value>Der gewählte Platz ist kein gültiger leerer Platz für die Aktivierung.</value>
+  </data>
   <data name="COMMON_NOT_FOUND" xml:space="preserve">
     <value>Die angeforderte Ressource wurde nicht gefunden.</value>
   </data>
