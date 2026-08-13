@@ -85,6 +85,15 @@
   <data name="CHAIN_CYCLES_INVALID_ACTIVE_SLOT" xml:space="preserve">
     <value>Der gewählte Platz ist kein gültiger leerer Platz für die Aktivierung.</value>
   </data>
+  <data name="MAINTENANCE_TASK_NOT_DUE" xml:space="preserve">
+    <value>Diese Arbeit ist noch nicht fällig. Bestätige, um sie vorzeitig als erledigt zu markieren.</value>
+  </data>
+  <data name="MAINTENANCE_TASK_ALREADY_COMPLETED" xml:space="preserve">
+    <value>Diese einmalige Arbeit ist bereits erledigt.</value>
+  </data>
+  <data name="MAINTENANCE_TASK_INACTIVE" xml:space="preserve">
+    <value>Diese Arbeit ist inaktiv und kann nicht bestätigt werden.</value>
+  </data>
   <data name="COMMON_NOT_FOUND" xml:space="preserve">
     <value>Die angeforderte Ressource wurde nicht gefunden.</value>
   </data>

@@ -22,6 +22,12 @@ namespace BikePartsTracker.Localization
         public const string ChainCyclesNoEmptySlots = "CHAIN_CYCLES_NO_EMPTY_SLOTS";
         /// <summary>activeNewSlotIndex is out of range or addresses a slot that is already filled (400).</summary>
         public const string ChainCyclesInvalidActiveSlot = "CHAIN_CYCLES_INVALID_ACTIVE_SLOT";
+        /// <summary>Acknowledge called before due without <c>force: true</c> (400).</summary>
+        public const string MaintenanceTaskNotDue = "MAINTENANCE_TASK_NOT_DUE";
+        /// <summary>Acknowledge on an already-completed OneTime task (409).</summary>
+        public const string MaintenanceTaskAlreadyCompleted = "MAINTENANCE_TASK_ALREADY_COMPLETED";
+        /// <summary>Acknowledge on an inactive Repeating/Cyclic task (409).</summary>
+        public const string MaintenanceTaskInactive = "MAINTENANCE_TASK_INACTIVE";
         public const string CommonNotFound = "COMMON_NOT_FOUND";
         public const string CommonForbidden = "COMMON_FORBIDDEN";
         public const string CommonValidation = "COMMON_VALIDATION";
@@ -35,6 +41,8 @@ namespace BikePartsTracker.Localization
         {
             AuthInvalidCredentials => StatusCodes.Status401Unauthorized,
             AuthEmailTaken => StatusCodes.Status409Conflict,
+            MaintenanceTaskAlreadyCompleted => StatusCodes.Status409Conflict,
+            MaintenanceTaskInactive => StatusCodes.Status409Conflict,
             CommonNotFound => StatusCodes.Status404NotFound,
             CommonForbidden => StatusCodes.Status403Forbidden,
             CommonUnexpected => StatusCodes.Status500InternalServerError,

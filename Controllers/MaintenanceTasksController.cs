@@ -1,6 +1,8 @@
 using BikePartsTracker.Data;
 using BikePartsTracker.DTOs;
+using BikePartsTracker.Exceptions;
 using BikePartsTracker.Extensions;
+using BikePartsTracker.Localization;
 using BikePartsTracker.Models;
 using BikePartsTracker.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -29,23 +31,84 @@ namespace BikePartsTracker.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<MaintenanceTaskDto>>> Get([FromQuery] MaintenanceTaskParentType? parentType, [FromQuery] Guid? parentId)
+        public async Task<ActionResult<IEnumerable<MaintenanceTaskDto>>> Get(
+            [FromQuery] MaintenanceTaskParentType? parentType,
+            [FromQuery] Guid? parentId,
+            [FromQuery] bool? isActive,
+            [FromQuery] Guid? bikeId,
+            [FromQuery] bool excludePartParents = false,
+            [FromQuery] Guid? relatedToPartId = null)
         {
             if (!User.TryGetUserId(out var userId))
             {
                 return Unauthorized();
             }
 
-            var query = _context.MaintenanceTasks.Where(w => w.UserId == userId);
-
-            if (parentType.HasValue)
+            if (bikeId.HasValue && relatedToPartId.HasValue)
             {
-                query = query.Where(w => w.ParentType == parentType.Value);
+                throw new AppException(ErrorCodes.CommonValidation);
             }
 
-            if (parentId.HasValue)
+            IQueryable<MaintenanceTask> query = _context.MaintenanceTasks.Where(w => w.UserId == userId);
+
+            if (bikeId.HasValue)
             {
-                query = query.Where(w => w.ParentId == parentId.Value);
+                var bikeOwned = await _context.Bikes.AnyAsync(b => b.Id == bikeId.Value && b.UserId == userId);
+                if (!bikeOwned)
+                {
+                    return NotFound();
+                }
+
+                var partIdsOnBike = await _context.BikeParts
+                    .Where(p => p.BikeId == bikeId.Value && p.UserId == userId)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+
+                var cycleIdsOnBike = await _context.ChainCycles
+                    .Where(c => c.BikeId == bikeId.Value && c.Bike.UserId == userId)
+                    .Select(c => c.Id)
+                    .ToListAsync();
+
+                query = query.Where(w =>
+                    (w.ParentType == MaintenanceTaskParentType.Bike && w.ParentId == bikeId.Value)
+                    || (!excludePartParents
+                        && w.ParentType == MaintenanceTaskParentType.Part
+                        && partIdsOnBike.Contains(w.ParentId))
+                    || (w.ParentType == MaintenanceTaskParentType.ChainCycle
+                        && cycleIdsOnBike.Contains(w.ParentId)));
+            }
+            else if (relatedToPartId.HasValue)
+            {
+                var part = await _context.BikeParts
+                    .FirstOrDefaultAsync(p => p.Id == relatedToPartId.Value && p.UserId == userId);
+                if (part == null)
+                {
+                    return NotFound();
+                }
+
+                var cycleIdsWithPart = await FindCycleIdsContainingPartAsync(relatedToPartId.Value, userId);
+
+                query = query.Where(w =>
+                    (w.ParentType == MaintenanceTaskParentType.Part && w.ParentId == relatedToPartId.Value)
+                    || (w.ParentType == MaintenanceTaskParentType.ChainCycle
+                        && cycleIdsWithPart.Contains(w.ParentId)));
+            }
+            else
+            {
+                if (parentType.HasValue)
+                {
+                    query = query.Where(w => w.ParentType == parentType.Value);
+                }
+
+                if (parentId.HasValue)
+                {
+                    query = query.Where(w => w.ParentId == parentId.Value);
+                }
+            }
+
+            if (isActive.HasValue)
+            {
+                query = query.Where(w => w.IsActive == isActive.Value);
             }
 
             var maintenanceTasks = await query.OrderByDescending(w => w.CreatedAt).ToListAsync();
@@ -181,6 +244,79 @@ namespace BikePartsTracker.Controllers
             return Ok(await MapToDtoAsync(maintenanceTask));
         }
 
+        /// <summary>ADR 0011 — acknowledge an occurrence ("I did it!" / "Do it now").</summary>
+        [HttpPost("{id}/acknowledge")]
+        public async Task<ActionResult<AcknowledgeMaintenanceTaskResponseDto>> Acknowledge(
+            Guid id,
+            [FromBody] AcknowledgeMaintenanceTaskDto? dto)
+        {
+            if (!User.TryGetUserId(out var userId))
+            {
+                return Unauthorized();
+            }
+
+            dto ??= new AcknowledgeMaintenanceTaskDto();
+
+            var maintenanceTask = await _context.MaintenanceTasks
+                .FirstOrDefaultAsync(w => w.Id == id && w.UserId == userId);
+            if (maintenanceTask == null)
+            {
+                return NotFound();
+            }
+
+            if (!maintenanceTask.IsActive)
+            {
+                if (maintenanceTask.Type == MaintenanceTaskType.OneTime)
+                {
+                    throw new AppException(ErrorCodes.MaintenanceTaskAlreadyCompleted);
+                }
+
+                throw new AppException(ErrorCodes.MaintenanceTaskInactive);
+            }
+
+            var consumed = await _maintenanceTaskEvaluationService.GetConsumedValueAsync(maintenanceTask);
+            if (consumed < maintenanceTask.TriggerValue && !dto.Force)
+            {
+                throw new AppException(ErrorCodes.MaintenanceTaskNotDue);
+            }
+
+            var now = DateTime.UtcNow;
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                if (maintenanceTask.Type == MaintenanceTaskType.OneTime)
+                {
+                    maintenanceTask.IsActive = false;
+                    maintenanceTask.UpdatedAt = now;
+                }
+                else
+                {
+                    // Repeating and Cyclic: reset measurement window (ADR 0012 swap not in scope).
+                    maintenanceTask.StartDate = now;
+                    maintenanceTask.UpdatedAt = now;
+                }
+
+                await _context.SaveChangesAsync();
+                await _maintenanceTaskShadowPeriodService.SyncShadowPeriodsAsync(maintenanceTask);
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+
+            return Ok(new AcknowledgeMaintenanceTaskResponseDto
+            {
+                MaintenanceTask = await MapToDtoAsync(maintenanceTask),
+                Affected = new RideMutationResultDto
+                {
+                    AffectedMaintenanceTaskIds = new List<Guid> { maintenanceTask.Id }
+                }
+            });
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
@@ -198,6 +334,18 @@ namespace BikePartsTracker.Controllers
             _context.MaintenanceTasks.Remove(maintenanceTask);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        private async Task<List<Guid>> FindCycleIdsContainingPartAsync(Guid partId, Guid userId)
+        {
+            var cycles = await _context.ChainCycles
+                .Where(c => c.Bike.UserId == userId)
+                .ToListAsync();
+
+            return cycles
+                .Where(c => c.Chains.Any(chainId => chainId == partId))
+                .Select(c => c.Id)
+                .ToList();
         }
 
         private async Task<MaintenanceTaskDto> MapToDtoAsync(MaintenanceTask maintenanceTask)

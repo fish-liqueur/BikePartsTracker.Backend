@@ -85,6 +85,15 @@
   <data name="CHAIN_CYCLES_INVALID_ACTIVE_SLOT" xml:space="preserve">
     <value>Выбранный слот не является допустимым пустым слотом для активации.</value>
   </data>
+  <data name="MAINTENANCE_TASK_NOT_DUE" xml:space="preserve">
+    <value>Время этой работы ещё не пришло. Хотите сделать её раньше?</value>
+  </data>
+  <data name="MAINTENANCE_TASK_ALREADY_COMPLETED" xml:space="preserve">
+    <value>Это была одноразовая работа, и она уже выполнена.</value>
+  </data>
+  <data name="MAINTENANCE_TASK_INACTIVE" xml:space="preserve">
+    <value>Эта работа неактивна и не может быть подтверждена.</value>
+  </data>
   <data name="COMMON_NOT_FOUND" xml:space="preserve">
     <value>Запрашиваемый ресурс не найден.</value>
   </data>

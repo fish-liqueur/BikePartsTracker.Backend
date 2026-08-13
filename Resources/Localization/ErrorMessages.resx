@@ -85,6 +85,15 @@
   <data name="CHAIN_CYCLES_INVALID_ACTIVE_SLOT" xml:space="preserve">
     <value>The selected slot is not a valid empty slot for activation.</value>
   </data>
+  <data name="MAINTENANCE_TASK_NOT_DUE" xml:space="preserve">
+    <value>This work is not due yet. Confirm to mark it done early.</value>
+  </data>
+  <data name="MAINTENANCE_TASK_ALREADY_COMPLETED" xml:space="preserve">
+    <value>This one-time work is already completed.</value>
+  </data>
+  <data name="MAINTENANCE_TASK_INACTIVE" xml:space="preserve">
+    <value>This work is inactive and cannot be acknowledged.</value>
+  </data>
   <data name="COMMON_NOT_FOUND" xml:space="preserve">
     <value>The requested resource was not found.</value>
   </data>

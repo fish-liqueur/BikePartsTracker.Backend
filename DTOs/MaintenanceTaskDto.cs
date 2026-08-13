@@ -48,4 +48,20 @@ namespace BikePartsTracker.DTOs
         public double? TriggerValue { get; set; }
         public bool? IsActive { get; set; }
     }
+
+    /// <summary>ADR 0011 — acknowledge an occurrence ("I did it!" / "Do it now").</summary>
+    public class AcknowledgeMaintenanceTaskDto
+    {
+        /// <summary>
+        /// Required <c>true</c> when the task is not yet due (<c>consumed &lt; TriggerValue</c>).
+        /// Optional when due (<see cref="MaintenanceTaskDto.NeedsAttention"/>).
+        /// </summary>
+        public bool Force { get; set; }
+    }
+
+    public class AcknowledgeMaintenanceTaskResponseDto
+    {
+        public required MaintenanceTaskDto MaintenanceTask { get; set; }
+        public RideMutationResultDto Affected { get; set; } = new();
+    }
 }
